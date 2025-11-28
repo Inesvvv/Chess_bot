@@ -68,6 +68,8 @@ void init_masks() {
     }
 }
 
+
+// attack tables prob pas dans bitboards mais peut etre dans board ou moves
 // --------------- Initialize attack tables ----------------
 void init_attack_tables() {
     for(int sq_index=0; sq_index<64; ++sq_index) {
