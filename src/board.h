@@ -2,6 +2,7 @@
 #pragma once
 #include <cstdint>
 #include <vector>
+#include <random>
 
 // AIMS of this file:
 // - determine who is to move 
@@ -21,7 +22,9 @@ class Board {
         Board();
 
         std::vector<Move> generate_moves() const; // returns a vector of all possible moves of our team 
-        Move get_random_move() const; // for now this juste returns a random move 
+        Move get_random_move() const; // for now, return a random move from all moves
+
+        void make_move(const Move& move); // applies a given move to the board and updates who the current player is
 
     private:
         int pop_lsb(Bitboards::Bitboard &b) const; // utilty fucntion tat iterats through all positions to find where the pieces are 
