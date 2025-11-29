@@ -1,0 +1,144 @@
+#include "board.h"
+#include <cstdlib>
+
+using namespace Bitboards; 
+
+Board::Board(){
+    // Inititalize bitboards, attacks and masks (later we don't have that yet but don't forget to uncomment)
+    Bitboards::init_bitboards();
+    Bitboards::init_attack_tables();
+    // Bitboards::init_masks();
+}
+
+// utility fuction that pops least significant and returns index (= gets all positions of our pieces)
+int Board::pop_lsb(Bitboard &b) const{
+    if (b==0) return -1; // no pieces left or we have iterated through all 
+    int position = __builtin_ctzll(b); // built in fucntion that counts the trailign zeros before the first 1 (= returns the position of the first piece)
+    b &= b - 1; // removes the least significant bit (= the piece we just found)
+    return position;
+}
+
+// ================ GENERATE ALL THE MOVES ===========================
+std::vector<Move> Board::generate_moves() const {
+    std::vector<Move> moves; // create our vector that xill contain all the possible moves
+    Bitboard pieces;
+    Bitboard enemy_pieces;
+    if (team_white){
+        pieces = all_white; // our bitboard is the one with all the white pieces
+        enemy_pieces = all_black;
+    }
+    else {
+        pieces = all_black; 
+        enemy_pieces = all_white;
+    }
+
+    // ==== KNIGHT MOVES ======= 
+    Bitboard knights;
+    Bitboard enemy_knights;
+    if (team_white){
+        knights = white_knights; 
+        enemy_knights = black_knights;
+    }
+    else {
+        knights = black_knights; 
+        enemy_knights = white_knights;
+    }
+    // So now our knights are a just a bitboard but we want the specific positions so use our helper function
+    Bitboard temp_knights = knights; // we create temporary bitboard so don't modify  original 
+    while (temp_knights){
+        int from = pop_lsb(temp_knights);
+        Bitboard attacks = knight_attacks[from] & ~pieces; // all the spots the knight can move to AND all the spots where our pieces are not 
+
+        Bitboard temp_attacks = attacks;
+        while (temp_attacks) {
+            int to = pop_lsb(temp_attacks);
+            moves.push_back({from, to}); // found possible move so add to the move vector 
+            }
+        }
+    
+    // ======= KINSG MOVES ===========
+    Bitboard king; 
+    Bitboard enemy_king; 
+    if (team_white){
+        king = white_kings; 
+        enemy_king = black_kings; 
+    }
+    else{
+        king = black_kings; 
+        enemy_king = white_kings; 
+    }
+    Bitboard temp_king = king;
+    while (temp_king){
+        int from = pop_lsb(temp_king);
+        Bitboard attacks = king_attacks[from] & ~pieces;
+        Bitboard temp_attacks = attacks; 
+        while (temp_attacks){
+            int to = pop_lsb(temp_attacks);
+            moves.push_back({from, to});
+            }
+        }
+    
+    // =========== PAWN MOVES ============
+    Bitboard pawns; 
+    Bitboard enemy_pawns; 
+    if (team_white){
+        pawns = white_pawns; 
+        enemy_pawns = black_pawns; 
+    }
+    else{
+        pawns = black_pawns; 
+        enemy_pawns = white_pawns; 
+    }
+
+    Bitboard temp_pawns = pawns;
+    while (pawns){
+        int from = pop_lsb(temp_pawns);
+        int to; 
+        if (team_white){ // need to differentiate because white move from bottom to top and black from top to bottom
+            to = from + 8;
+            if (to < 64 && !(occupied & bit(to))){
+                moves.push_back({from,to});
+                }
+            int left_capture = from + 7; // here left_capture is +7 because the bitboard is from left to right and bottom to top 
+            if (left_capture < 64 && (enemy_pawns & bit(left_capture))){
+                moves.push_back({from, left_capture});
+                }
+            int right_capture = from + 9; 
+            if (right_capture < 64 && (enemy_pawns & bit(right_capture))){
+                moves.push_back({from, right_capture});
+                }
+            }
+        else{
+            to = from - 8;
+            if (to >= 0 && !(occupied & bit(to))) {
+                moves.push_back({from, to});
+                }
+
+            int left_capture = from - 9;
+            if (left_capture >= 0 && (enemy_pawns & bit(left_capture))) {
+                moves.push_back({from, left_capture});
+                }
+
+            int right_capture = from - 7;
+            if (right_capture >= 0 && (enemy_pawns & bit(right_capture))) {
+                moves.push_back({from, right_capture});
+                }
+            }
+        }
+    
+    
+    // =========== QUEEN MOVES ============
+
+
+    // ========== TOWER MOVES ==============
+
+    // ========== BISHOP MOVES ============
+
+
+}
+
+
+
+
+
+
