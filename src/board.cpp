@@ -131,16 +131,12 @@ std::vector<Move> Board::generate_moves() const {
             }
         }
     
-    
-    // =========== QUEEN MOVES ============
-
-
     // ========== TOWER MOVES ==============
     Bitboard rooks; 
     Bitboard enemy_rooks; 
     if (team_white){
         rooks = white_rooks; 
-        enemy_rooks = black_pawns; 
+        enemy_rooks = black_rooks; 
     }
     else{
         rooks = black_rooks; 
@@ -153,54 +149,54 @@ std::vector<Move> Board::generate_moves() const {
         int to;
         const int rank = from / 8;
         const int file = from % 8;
-        if (team_white){ // need to differentiate because white move from bottom to top and black from top to bottom
-            //increasing in rank
-            for (int r = 1; r < 8 - rank; r++) {
-                to = from + 8 * r; //increasing in rank for white rook is in steps of (+8) bits in the bitboard
-                if (to < 64 && !(all_white & bit(to))){
-                    moves.push_back({from,to});
+        //if (team_white){ // need to differentiate because white move from bottom to top and black from top to bottom
+        //increasing in rank
+        for (int r = 1; r < 8 - rank; r++) {
+            to = from + 8 * r; //increasing in rank for rook is in steps of (+8) bits in the bitboard
+            if (to < 64 && !(pieces & bit(to))){
+                moves.push_back({from,to});
                 }
-                if (occupied & bit(to)) {  
-                    break; //stop sliding rook if collision with another piece
-                }
+            if (occupied & bit(to)) {  
+                break; //stop sliding rook if collision with another piece
             }
-            //decreasing in rank
-            for (int r = rank; r > 0; r--) {
-                to = from - 8 * r; //decreasing in rank for white rook is in steps of (-8) bits in the bitboard
-                if (to < 64 && !(all_white & bit(to))){
-                    moves.push_back({from,to});
-                }
-                if (occupied & bit(to)) {  
-                    break; //stop sliding rook if collision with another piece
-                }
+        }
+        //decreasing in rank
+        for (int r = rank; r > 0; r--) {
+            to = from - 8 * r; //decreasing in rank for rook is in steps of (-8) bits in the bitboard
+            if (to < 64 && !(pieces & bit(to))){
+                moves.push_back({from,to});
             }
-             //increasing in file
-             for (int r = 1; r < 8 - file; r++) {
-                to = from + r; //increasing in file for white rook is in steps of (+1) bits in the bitboard
-                if (to / 8 != rank) { 
-                    break;  //rank check to prevent wrap arounds
-                }
-                if (to < 64 && !(all_white & bit(to))){
-                    moves.push_back({from,to});
-                }
-                if (occupied & bit(to)) {  
-                    break; //stop sliding rook if collision with another piece
-                }
+            if (occupied & bit(to)) {  
+                break; 
             }
-            //decreasing in file
-            for (int r = file; r > 0; r--) {
-                to = from - r; //decreasing in file for white rook is in steps of (-1) bits in the bitboard
-                if (to / 8 != rank) { 
-                    break;  //rank check to prevent wrap arounds
-                }
-                if (to < 64 && !(all_white & bit(to))){
-                    moves.push_back({from,to});
-                }
-                if (occupied & bit(to)) {  
-                    break; //stop sliding rook if collision with another piece
-                }
-            } 
-        }          
+        }
+        //increasing in file
+         for (int r = 1; r < 8 - file; r++) {
+            to = from + r; //increasing in file for rook is in steps of (+1) bits in the bitboard
+            if (to / 8 != rank) { 
+                break;  //rank check to prevent wrap arounds
+            }
+            if (to < 64 && !(pieces & bit(to))){
+                moves.push_back({from,to});
+            }
+            if (occupied & bit(to)) {  
+                break; 
+            }
+        }
+        //decreasing in file
+        for (int r = file; r > 0; r--) {
+            to = from - r; //decreasing in file for rook is in steps of (-1) bits in the bitboard
+            if (to / 8 != rank) { 
+                break;  
+            }
+            if (to < 64 && !(pieces & bit(to))){
+                moves.push_back({from,to});
+            }
+            if (occupied & bit(to)) {  
+                break; 
+            }
+        }
+        /*           
         else{
             //increasing in rank
             for (int r = 1; r < 8 - rank; r++) {
@@ -209,7 +205,7 @@ std::vector<Move> Board::generate_moves() const {
                     moves.push_back({from,to});
                 }
                 if (occupied & bit(to)) {  
-                    break; //stop sliding rook if collision with another piece
+                    break; 
                 }
             }
             //decreasing in rank
@@ -219,36 +215,38 @@ std::vector<Move> Board::generate_moves() const {
                     moves.push_back({from,to});
                 }
                 if (occupied & bit(to)) {  
-                    break; //stop sliding rook if collision with another piece
+                    break; 
                 }
             }
              //increasing in file
              for (int r = 1; r < 8 - file; r++) {
                 to = from - r; //increasing in file for black rook is in steps of (-1) bits in the bitboard
                 if (to / 8 != rank) { 
-                    break;  //rank check to prevent wrap arounds
+                    break;  
                 }
                 if (to < 64 && !(all_black & bit(to))){
                     moves.push_back({from,to});
                 }
                 if (occupied & bit(to)) {  
-                    break; //stop sliding rook if collision with another piece
+                    break; 
                 }
             }
             //decreasing in file
             for (int r = file; r > 0; r--) {
                 to = from + r; //decreasing in file for black rook is in steps of (+1) bits in the bitboard
                 if (to / 8 != rank) { 
-                    break;  //rank check to prevent wrap arounds
+                    break; 
                 }
                 if (to < 64 && !(all_black & bit(to))){
                     moves.push_back({from,to});
                 }
                 if (occupied & bit(to)) {  
-                    break; //stop sliding rook if collision with another piece
+                    break; 
                 }
             }
+            
         }
+        */
     
     }
     // ========== BISHOP MOVES ============
@@ -310,97 +308,129 @@ std::vector<Move> Board::generate_moves() const {
             if (occupied & bit(to)) break;
         };
     }
-    return moves;
-}
 
-// for now, return a random move from all moves
-Move Board::get_random_move() const {
-    std::vector<Move> moves = generate_moves();
-
-    // for now this is a temporary output if there are no legal moves; avoids division by zero
-    if(moves.empty()){
-        return {0, 0};
-    }
-
-    // get a random index from moves and return it 
-    int index = rand() % moves.size();
-    return moves[index];
-}
-
-// applies a given move to the board and updates who the current player is
-void Board::make_move(const Move& move){
-    int from = move.from;
-    int to = move.to;
-
-    Bitboard from_bit = bit(from);
-    Bitboard to_bit = bit(to);
-
-    // remove captured pieces
-    if(team_white){
-        black_pawns   &= ~to_bit;
-        black_knights &= ~to_bit;
-        black_bishops &= ~to_bit;
-        black_rooks   &= ~to_bit;
-        black_queens  &= ~to_bit;
-        black_kings   &= ~to_bit;
-    } else {
-        white_pawns   &= ~to_bit;
-        white_knights &= ~to_bit;
-        white_bishops &= ~to_bit;
-        white_rooks   &= ~to_bit;
-        white_queens  &= ~to_bit;
-        white_kings   &= ~to_bit;
-    }
-
-    // move the piece (if a piece is on the square from_bit, remove it from from_bit, and put it on to_bit)
-    if (team_white) {
-        if (white_pawns & from_bit) {
-            white_pawns &= ~from_bit;
-            white_pawns |=  to_bit;
-        } else if (white_knights & from_bit) {
-            white_knights &= ~from_bit;
-            white_knights |=  to_bit;
-        } else if (white_bishops & from_bit) {
-            white_bishops &= ~from_bit;
-            white_bishops |=  to_bit;
-        } else if (white_rooks & from_bit) {
-            white_rooks &= ~from_bit;
-            white_rooks |=  to_bit;
-        } else if (white_queens & from_bit) {
-            white_queens &= ~from_bit;
-            white_queens |=  to_bit;
-        } else if (white_kings & from_bit) {
-            white_kings &= ~from_bit;
-            white_kings |=  to_bit;
+        // =========== QUEEN MOVES ============
+        //for queen moves we just recycle bishop and rook moves
+        Bitboard queens; 
+        Bitboard enemy_queens; 
+        if (team_white){
+            queens = white_queens; 
+            enemy_queens = black_queens; 
         }
-    } else {
-        if (black_pawns & from_bit) {
-            black_pawns &= ~from_bit;
-            black_pawns |=  to_bit;
-        } else if (black_knights & from_bit) {
-            black_knights &= ~from_bit;
-            black_knights |=  to_bit;
-        } else if (black_bishops & from_bit) {
-            black_bishops &= ~from_bit;
-            black_bishops |=  to_bit;
-        } else if (black_rooks & from_bit) {
-            black_rooks &= ~from_bit;
-            black_rooks |=  to_bit;
-        } else if (black_queens & from_bit) {
-            black_queens &= ~from_bit;
-            black_queens |=  to_bit;
-        } else if (black_kings & from_bit) {
-            black_kings &= ~from_bit;
-            black_kings |=  to_bit;
+        else{
+            queens = black_queens; 
+            enemy_queens = white_queens; 
         }
-    }
-
-    // update the general bitboards 
-    all_white = white_pawns | white_knights | white_bishops | white_rooks | white_queens | white_kings;
-    all_black = black_pawns | black_knights | black_bishops | black_rooks | black_queens | black_kings;
-    occupied = all_white | all_black;
-
-    // switch teams
-    team_white = !team_white;
+        Bitboard temp_queens = queens;
+        while (temp_queens){
+            int from = pop_lsb(temp_queens);
+            int to;
+            const int rank = from / 8;
+            const int file = from % 8;
+            
+            //ROOK MOVES (Horizontal and Vertical)
+    
+            //increasing rank
+            for (int r = 1; r < 8 - rank; r++) {
+                to = from + 8 * r; 
+                if (!(pieces & bit(to))){
+                    moves.push_back({from,to});
+                }
+                if (occupied & bit(to)) {  
+                    break; // Stop on collision
+                }
+            }
+            
+            //decreasing rank
+            for (int r = 1; r <= rank; r++) { 
+                to = from - 8 * r; 
+                if (!(pieces & bit(to))){
+                    moves.push_back({from,to});
+                }
+                if (occupied & bit(to)) {  
+                    break; // Stop on collision
+                }
+            }
+            
+             //increasing file
+             for (int r = 1; r < 8 - file; r++) {
+                to = from + r; 
+                if (to / 8 != rank) { 
+                    break;  // Stop on wrap-around
+                }
+                if (!(pieces & bit(to))){
+                    moves.push_back({from,to});
+                }
+                if (occupied & bit(to)) {  
+                    break; // Stop on collision
+                }
+            }
+            
+            //decreasing file
+            for (int r = 1; r <= file; r++) { 
+                to = from - r; 
+                if (to / 8 != rank) { 
+                    break;  // Stop on wrap-around
+                }
+                if (!(pieces & bit(to))){
+                    moves.push_back({from,to});
+                }
+                if (occupied & bit(to)) {  
+                    break; // Stop on collision
+                }
+            } 
+    
+            //BISHOP MOVES (Diagonals)
+            
+            //Upper right diagonal (+9)
+            for (int step = 1; step < 8; step++) {
+                int r = rank + step;
+                int f = file + step;
+                if (r >= 8 || f >= 8) break; // Check board bounds
+                to = r * 8 + f;
+    
+                if (!(pieces & bit(to))) moves.push_back({from, to});  
+                if (occupied & bit(to)) break; // stops the loop when there is a piece on the path 
+            };
+    
+            //Upper left diagonal (+7)
+            for (int step = 1; step < 8; step++) {
+                int r = rank + step;
+                int f = file - step;
+                if (r >= 8 || f < 0 ) break; // Check board bounds
+                to = r*8 + f; 
+                if (!(pieces & bit(to))) moves.push_back({from,to});
+                if (occupied & bit(to)) break; 
+            }
+    
+            //Lower right diagonal (-7)
+            for (int step = 1; step < 8; step++) {
+                int r = rank - step;
+                int f = file + step;
+                if (r < 0 || f >= 8) break; // Check board bounds
+                to = r * 8 + f;
+    
+                if (!(pieces & bit(to))) moves.push_back({from, to});  
+                if (occupied & bit(to)) break; 
+            };
+    
+            //Lower left diagonal (-9)
+            for (int step = 1; step < 8; step++) {
+                int r = rank - step;
+                int f = file - step;
+                if (r < 0 || f < 0) break; // Check board bounds
+                to = r * 8 + f;
+    
+                if (!(pieces & bit(to))) moves.push_back({from, to});  
+                if (occupied & bit(to)) break;
+            };
+        
+        }
+    
 }
+
+
+
+
+
 
