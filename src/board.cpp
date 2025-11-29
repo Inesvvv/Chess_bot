@@ -1,6 +1,10 @@
 #include "board.h"
 #include <cstdlib>
 
+// Memo: 
+// rank = rows (1 to 8)
+// file = columns (a to h)
+
 using namespace Bitboards; 
 
 Board::Board(){
@@ -247,6 +251,65 @@ std::vector<Move> Board::generate_moves() const {
     
     }
     // ========== BISHOP MOVES ============
+    Bitboard bishops;
+    Bitboard enemy_bishops;
+    if (team_white) {
+        bishops = white_bishops;
+        enemy_bishops = black_bishops;
+    } else {
+        bishops = black_bishops;
+        enemy_bishops = white_bishops;
+    }
+    Bitboard temp_bishops = bishops;
+    while (temp_bishops) {
+        int from = pop_lsb(temp_bishops);
+        int to;
+        int rank = from / 8;
+        int file = from % 8;
+        // Upper right diagonal 
+        for (int step = 1; step < 8; step++) {
+            int r = rank + step;
+            int f = file + step;
+            if (r >= 8 || f >= 8) break;
+            to = r * 8 + f;
+
+            if (!(pieces & bit(to))) moves.push_back({from, to});  //handles the cases when enemy pieces are in the position (adds the move if its enemy piece or empty)
+            if (occupied & bit(to)) break; // stops the loop when there is a piece on the path 
+        };
+
+        // Upper left diagonal 
+        for (int step = 1; step < 8; step++) {
+            int r = rank + step;
+            int f = file - step;
+            if (r >= 8 || f < 0 ) break; 
+            to = r*8 + f; 
+            if (!(pieces & bit(to))) moves.push_back({from,to});
+            if (occupied & bit(to)) break; 
+        }
+
+        // Lower right diagonal 
+        for (int step = 1; step < 8; step++) {
+            int r = rank - step;
+            int f = file + step;
+            if (r < 0 || f >= 8) break;
+            to = r * 8 + f;
+
+            if (!(pieces & bit(to))) moves.push_back({from, to});  
+            if (occupied & bit(to)) break; 
+        };
+
+        // Lower left diagonal 
+        for (int step = 1; step < 8; step++) {
+            int r = rank - step;
+            int f = file - step;
+            if (r < 0 || f < 0) break;
+            to = r * 8 + f;
+
+            if (!(pieces & bit(to))) moves.push_back({from, to});  
+            if (occupied & bit(to)) break;
+        };
+
+
 
 
 }
