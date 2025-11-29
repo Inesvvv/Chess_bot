@@ -1,14 +1,19 @@
-#include "bitboards.h"
-#pragma once
-#include <cstdint>
-#include <vector>
-#include <random>
+// Project: Chesster - Simple Chess Engine
+// File: board.h
+// Authors: Chloe Deux-Pancera, Ines Vallot, Mathis Vernier, and Apolline Weinstein
+// Created: 2025-11-28
 
 // AIMS of this file:
 // - determine who is to move 
 // - constructor that initializes the position 
 // - move generatiion 
 // - choosing the random move ( for now we will use the evaluation map later )
+
+#include "bitboards.h"
+#pragma once
+#include <cstdint>
+#include <vector>
+#include <random>
 
 struct Move {
     int from;

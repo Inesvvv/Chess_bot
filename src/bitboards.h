@@ -1,3 +1,7 @@
+// Project: Chesster - Simple Chess Engine
+// File: bitboards.h
+// Authors: Chloe Deux-Pancera, Ines Vallot, Mathis Vernier, and Apolline Weinstein
+// Created: 2025-11-28
 
 #pragma once
 #include <cstdint>
