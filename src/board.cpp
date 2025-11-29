@@ -308,10 +308,7 @@ std::vector<Move> Board::generate_moves() const {
             if (!(pieces & bit(to))) moves.push_back({from, to});  
             if (occupied & bit(to)) break;
         };
-
-
-
-
+    }
 }
 
 
