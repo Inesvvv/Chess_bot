@@ -430,6 +430,98 @@ std::vector<Move> Board::generate_moves() const {
 }
 
 
+// for now, return a random move from all moves
+Move Board::get_random_move() const {
+    std::vector<Move> moves = generate_moves();
+
+    // for now this is a temporary output if there are no legal moves; avoids division by zero
+    if(moves.empty()){
+        return {0, 0};
+    }
+
+    // get a random index from moves and return it 
+    int index = rand() % moves.size();
+    return moves[index];
+}
+
+// applies a given move to the board and updates who the current player is
+void Board::make_move(const Move& move){
+    int from = move.from;
+    int to = move.to;
+
+    Bitboard from_bit = bit(from);
+    Bitboard to_bit = bit(to);
+
+    // remove captured pieces
+    if(team_white){
+        black_pawns   &= ~to_bit;
+        black_knights &= ~to_bit;
+        black_bishops &= ~to_bit;
+        black_rooks   &= ~to_bit;
+        black_queens  &= ~to_bit;
+        black_kings   &= ~to_bit;
+    } else {
+        white_pawns   &= ~to_bit;
+        white_knights &= ~to_bit;
+        white_bishops &= ~to_bit;
+        white_rooks   &= ~to_bit;
+        white_queens  &= ~to_bit;
+        white_kings   &= ~to_bit;
+    }
+
+    // move the piece (if a piece is on the square from_bit, remove it from from_bit, and put it on to_bit)
+    if (team_white) {
+        if (white_pawns & from_bit) {
+            white_pawns &= ~from_bit;
+            white_pawns |=  to_bit;
+        } else if (white_knights & from_bit) {
+            white_knights &= ~from_bit;
+            white_knights |=  to_bit;
+        } else if (white_bishops & from_bit) {
+            white_bishops &= ~from_bit;
+            white_bishops |=  to_bit;
+        } else if (white_rooks & from_bit) {
+            white_rooks &= ~from_bit;
+            white_rooks |=  to_bit;
+        } else if (white_queens & from_bit) {
+            white_queens &= ~from_bit;
+            white_queens |=  to_bit;
+        } else if (white_kings & from_bit) {
+            white_kings &= ~from_bit;
+            white_kings |=  to_bit;
+        }
+    } else {
+        if (black_pawns & from_bit) {
+            black_pawns &= ~from_bit;
+            black_pawns |=  to_bit;
+        } else if (black_knights & from_bit) {
+            black_knights &= ~from_bit;
+            black_knights |=  to_bit;
+        } else if (black_bishops & from_bit) {
+            black_bishops &= ~from_bit;
+            black_bishops |=  to_bit;
+        } else if (black_rooks & from_bit) {
+            black_rooks &= ~from_bit;
+            black_rooks |=  to_bit;
+        } else if (black_queens & from_bit) {
+            black_queens &= ~from_bit;
+            black_queens |=  to_bit;
+        } else if (black_kings & from_bit) {
+            black_kings &= ~from_bit;
+            black_kings |=  to_bit;
+        }
+    }
+
+    // update the general bitboards 
+    all_white = white_pawns | white_knights | white_bishops | white_rooks | white_queens | white_kings;
+    all_black = black_pawns | black_knights | black_bishops | black_rooks | black_queens | black_kings;
+    occupied = all_white | all_black;
+
+    // switch teams
+    team_white = !team_white;
+}
+
+
 
 
 
