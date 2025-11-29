@@ -131,7 +131,121 @@ std::vector<Move> Board::generate_moves() const {
 
 
     // ========== TOWER MOVES ==============
+    Bitboard rooks; 
+    Bitboard enemy_rooks; 
+    if (team_white){
+        rooks = white_rooks; 
+        enemy_rooks = black_pawns; 
+    }
+    else{
+        rooks = black_rooks; 
+        enemy_rooks = white_rooks; 
+    }
 
+    Bitboard temp_rooks = rooks;
+    while (temp_rooks){
+        int from = pop_lsb(temp_rooks);
+        int to;
+        const int rank = from / 8;
+        const int file = from % 8;
+        if (team_white){ // need to differentiate because white move from bottom to top and black from top to bottom
+            //increasing in rank
+            for (int r = 1; r < 8 - rank; r++) {
+                to = from + 8 * r; //increasing in rank for white rook is in steps of (+8) bits in the bitboard
+                if (to < 64 && !(all_white & bit(to))){
+                    moves.push_back({from,to});
+                }
+                if (occupied & bit(to)) {  
+                    break; //stop sliding rook if collision with another piece
+                }
+            }
+            //decreasing in rank
+            for (int r = rank; r > 0; r--) {
+                to = from - 8 * r; //decreasing in rank for white rook is in steps of (-8) bits in the bitboard
+                if (to < 64 && !(all_white & bit(to))){
+                    moves.push_back({from,to});
+                }
+                if (occupied & bit(to)) {  
+                    break; //stop sliding rook if collision with another piece
+                }
+            }
+             //increasing in file
+             for (int r = 1; r < 8 - file; r++) {
+                to = from + r; //increasing in file for white rook is in steps of (+1) bits in the bitboard
+                if (to / 8 != rank) { 
+                    break;  //rank check to prevent wrap arounds
+                }
+                if (to < 64 && !(all_white & bit(to))){
+                    moves.push_back({from,to});
+                }
+                if (occupied & bit(to)) {  
+                    break; //stop sliding rook if collision with another piece
+                }
+            }
+            //decreasing in file
+            for (int r = file; r > 0; r--) {
+                to = from - r; //decreasing in file for white rook is in steps of (-1) bits in the bitboard
+                if (to / 8 != rank) { 
+                    break;  //rank check to prevent wrap arounds
+                }
+                if (to < 64 && !(all_white & bit(to))){
+                    moves.push_back({from,to});
+                }
+                if (occupied & bit(to)) {  
+                    break; //stop sliding rook if collision with another piece
+                }
+            } 
+        }          
+        else{
+            //increasing in rank
+            for (int r = 1; r < 8 - rank; r++) {
+                to = from - 8 * r; //increasing in rank for black rook is in steps of (-8) bits in the bitboard
+                if (to < 64 && !(all_black & bit(to))){
+                    moves.push_back({from,to});
+                }
+                if (occupied & bit(to)) {  
+                    break; //stop sliding rook if collision with another piece
+                }
+            }
+            //decreasing in rank
+            for (int r = rank; r > 0; r--) {
+                to = from + 8 * r; //decreasing in rank for black rook is in steps of (+8) bits in the bitboard
+                if (to < 64 && !(all_black & bit(to))){
+                    moves.push_back({from,to});
+                }
+                if (occupied & bit(to)) {  
+                    break; //stop sliding rook if collision with another piece
+                }
+            }
+             //increasing in file
+             for (int r = 1; r < 8 - file; r++) {
+                to = from - r; //increasing in file for black rook is in steps of (-1) bits in the bitboard
+                if (to / 8 != rank) { 
+                    break;  //rank check to prevent wrap arounds
+                }
+                if (to < 64 && !(all_black & bit(to))){
+                    moves.push_back({from,to});
+                }
+                if (occupied & bit(to)) {  
+                    break; //stop sliding rook if collision with another piece
+                }
+            }
+            //decreasing in file
+            for (int r = file; r > 0; r--) {
+                to = from + r; //decreasing in file for black rook is in steps of (+1) bits in the bitboard
+                if (to / 8 != rank) { 
+                    break;  //rank check to prevent wrap arounds
+                }
+                if (to < 64 && !(all_black & bit(to))){
+                    moves.push_back({from,to});
+                }
+                if (occupied & bit(to)) {  
+                    break; //stop sliding rook if collision with another piece
+                }
+            }
+        }
+    
+    }
     // ========== BISHOP MOVES ============
 
 
