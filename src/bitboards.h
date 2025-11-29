@@ -18,8 +18,13 @@ inline int sq(int file, int rank) {
 }
 
 inline Bitboard bit(int sq_index) {
+    if (sq_index < 0 || sq_index >= 64) {
+        // Out-of-bounds square; return empty bitboard to avoid issues
+        return 0ULL;
+    }
     return 1ULL << sq_index;
 }
+
 
 // --------------- Piece bitboards ----------------
 extern Bitboard white_pawns;

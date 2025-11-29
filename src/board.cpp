@@ -21,7 +21,7 @@ Board::Board()
 }
 
 // utility fuction that pops least significant and returns index (= gets all positions of our pieces)
-int Board::pop_lsb(Bitboard &b) const
+int Board::pop_lsb(Bitboards::Bitboard &b) const
 {
     if (b == 0)
         return -1;                     // no pieces left or we have iterated through all
@@ -186,10 +186,11 @@ std::vector<Move> Board::generate_moves() const
         for (int r = 1; r < 8 - rank; r++)
         {
             to = from + 8 * r; // increasing in rank for rook is in steps of (+8) bits in the bitboard
-            if (to < 64 && !(pieces & bit(to)))
-            {
+
+            if (to < 0 || to >= 64)
+                break;
+            if (!(pieces & bit(to)))
                 moves.push_back({from, to});
-            }
             if (occupied & bit(to))
             {
                 break; // stop sliding rook if collision with another piece
@@ -199,10 +200,10 @@ std::vector<Move> Board::generate_moves() const
         for (int r = rank; r > 0; r--)
         {
             to = from - 8 * r; // decreasing in rank for rook is in steps of (-8) bits in the bitboard
-            if (to < 64 && !(pieces & bit(to)))
-            {
+            if (to < 0 || to >= 64)
+                break;
+            if (!(pieces & bit(to)))
                 moves.push_back({from, to});
-            }
             if (occupied & bit(to))
             {
                 break;
@@ -212,14 +213,12 @@ std::vector<Move> Board::generate_moves() const
         for (int r = 1; r < 8 - file; r++)
         {
             to = from + r; // increasing in file for rook is in steps of (+1) bits in the bitboard
+            if (to < 0 || to >= 64)
+                break;
             if (to / 8 != rank)
-            {
-                break; // rank check to prevent wrap arounds
-            }
-            if (to < 64 && !(pieces & bit(to)))
-            {
+                break;
+            if (!(pieces & bit(to)))
                 moves.push_back({from, to});
-            }
             if (occupied & bit(to))
             {
                 break;
@@ -229,20 +228,17 @@ std::vector<Move> Board::generate_moves() const
         for (int r = file; r > 0; r--)
         {
             to = from - r; // decreasing in file for rook is in steps of (-1) bits in the bitboard
-            if (to / 8 != rank)
-            {
+            if (to < 0 || to >= 64)
                 break;
-            }
-            if (to < 64 && !(pieces & bit(to)))
-            {
+            if (to / 8 != rank)
+                break;
+            if (!(pieces & bit(to)))
                 moves.push_back({from, to});
-            }
             if (occupied & bit(to))
             {
                 break;
             }
         }
-       
     }
     // ========== BISHOP MOVES ============
     Bitboard bishops;
@@ -352,10 +348,10 @@ std::vector<Move> Board::generate_moves() const
         for (int r = 1; r < 8 - rank; r++)
         {
             to = from + 8 * r;
+            if (to < 0 || to >= 64)
+                break;
             if (!(pieces & bit(to)))
-            {
                 moves.push_back({from, to});
-            }
             if (occupied & bit(to))
             {
                 break; // Stop on collision
@@ -366,10 +362,10 @@ std::vector<Move> Board::generate_moves() const
         for (int r = 1; r <= rank; r++)
         {
             to = from - 8 * r;
+            if (to < 0 || to >= 64)
+                break;
             if (!(pieces & bit(to)))
-            {
                 moves.push_back({from, to});
-            }
             if (occupied & bit(to))
             {
                 break; // Stop on collision
@@ -379,15 +375,12 @@ std::vector<Move> Board::generate_moves() const
         // increasing file
         for (int r = 1; r < 8 - file; r++)
         {
-            to = from + r;
+            if (to < 0 || to >= 64)
+                break;
             if (to / 8 != rank)
-            {
                 break; // Stop on wrap-around
-            }
             if (!(pieces & bit(to)))
-            {
                 moves.push_back({from, to});
-            }
             if (occupied & bit(to))
             {
                 break; // Stop on collision
@@ -398,14 +391,12 @@ std::vector<Move> Board::generate_moves() const
         for (int r = 1; r <= file; r++)
         {
             to = from - r;
+            if (to < 0 || to >= 64)
+                break;
             if (to / 8 != rank)
-            {
                 break; // Stop on wrap-around
-            }
             if (!(pieces & bit(to)))
-            {
                 moves.push_back({from, to});
-            }
             if (occupied & bit(to))
             {
                 break; // Stop on collision
@@ -473,6 +464,8 @@ std::vector<Move> Board::generate_moves() const
                 break;
         };
     }
+
+    return moves;
 }
 
 // for now, return a random move from all moves
