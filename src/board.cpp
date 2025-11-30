@@ -181,7 +181,6 @@ std::vector<Move> Board::generate_moves() const
         int to;
         const int rank = from / 8;
         const int file = from % 8;
-        // if (team_white){ // need to differentiate because white move from bottom to top and black from top to bottom
         // increasing in rank
         for (int r = 1; r < 8 - rank; r++)
         {
