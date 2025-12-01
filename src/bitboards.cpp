@@ -37,7 +37,7 @@ std::array<Bitboard, 64> king_attacks;
 // --------------- Initialize piece positions ----------------
 void init_bitboards() {
     // White pieces
-    white_pawns   = 0x0000000000001100ULL; // rank 2
+    white_pawns   = 0x000000000000FF00ULL; // rank 2
     white_rooks   = bit(sq(0,0)) | bit(sq(7,0));
     white_knights = bit(sq(1,0)) | bit(sq(6,0));
     white_bishops = bit(sq(2,0)) | bit(sq(5,0));
@@ -45,7 +45,7 @@ void init_bitboards() {
     white_kings   = bit(sq(4,0));
 
     // Black pieces
-    black_pawns   = 0x0011000000000000ULL; // rank 7
+    black_pawns   = 0x00FF000000000000ULL; // rank 7
     black_rooks   = bit(sq(0,7)) | bit(sq(7,7));
     black_knights = bit(sq(1,7)) | bit(sq(6,7));
     black_bishops = bit(sq(2,7)) | bit(sq(5,7));
