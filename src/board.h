@@ -10,20 +10,17 @@
 // - choosing the random move ( for now we will use the evaluation map later )
 
 #include "bitboards.h"
+#include "move.h"
 #pragma once
 #include <cstdint>
 #include <vector>
 #include <random>
 
-struct Move {
-    int from;
-    int to;
-};
-
 class Board {
     // for now we just have this but later need to add undo_move, add_move.. 
     public:
         bool team_white = true; // determines which team white or black 
+        int ep_square = -1; // equal to the en passant square if there is one else -1 
         Board();
 
         std::vector<Move> generate_moves() const; // returns a vector of all possible moves of our team 
