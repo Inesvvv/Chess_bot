@@ -150,11 +150,5 @@ int main(int argc, char *argv[])
     // print the next move into the file
     out << next_move_str << '\n';
 
-    // for testing purposes:
-    // apply move and show resulting position
-    board.make_move(next);
-    std::cout << "Position after engine move:\n";
-    board.print_board();
-
     return 0;
 }

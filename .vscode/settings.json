@@ -52,6 +52,18 @@
         "stack": "cpp",
         "unordered_map": "cpp",
         "variant": "cpp",
-        "algorithm": "cpp"
+        "algorithm": "cpp",
+        "__bits": "cpp",
+        "__config": "cpp",
+        "__debug": "cpp",
+        "__tuple": "cpp",
+        "atomic": "cpp",
+        "bit": "cpp",
+        "exception": "cpp",
+        "type_traits": "cpp",
+        "system_error": "cpp",
+        "chrono": "cpp",
+        "compare": "cpp",
+        "concepts": "cpp"
     }
 }
