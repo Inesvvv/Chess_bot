@@ -790,7 +790,7 @@ void Board::make_move(const Move &move)
 // for testing purposes
 void Board::print_board() const
 {
-    std::cout << "\n  +------------------------+\n";
+    std::cout << "\n  +-----------------+\n";
     for (int rank = 7; rank >= 0; --rank)
     {
         std::cout << rank + 1 << " | ";
@@ -831,7 +831,7 @@ void Board::print_board() const
         }
         std::cout << "|\n";
     }
-    std::cout << "  +------------------------+\n";
+    std::cout << "  +-----------------+\n";
     std::cout << "    a b c d e f g h\n";
     std::cout << (team_white ? "Side to move: White\n" : "Side to move: Black\n");
 }
