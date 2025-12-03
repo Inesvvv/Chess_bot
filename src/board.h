@@ -23,10 +23,17 @@ class Board {
         int ep_square = -1; // equal to the en passant square if there is one else -1 
         Board();
 
-        std::vector<Move> generate_moves() const; // returns a vector of all possible moves of our team 
+        std::vector<Move> generate_moves() const; // returns a vector of all possible moves of our team : ONLY PSEUDO-LEGAL MOVES
+        std::vector<Move> generate_legal_moves() const; // legal move filtering
         Move get_random_move() const; // for now, return a random move from all moves
 
         void make_move(const Move& move); // applies a given move to the board and updates who the current player is
+
+        bool is_square_attacked(int square, bool by_white) const; // checks if a square is attacked by opponent
+
+        int find_king(bool white) const; // find the king's square
+
+        int count_checkers(bool white_to_move) const; // detect check and double check
 
     private:
         int pop_lsb(Bitboards::Bitboard &b) const; // utilty fucntion tat iterats through all positions to find where the pieces are 
