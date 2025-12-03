@@ -14,7 +14,8 @@
 // HELPER FUNCTIONS TO PASS FROM FILE TO MOVE
 
 // helper to convert from index to position notation depending on the file and rank
-std::string index_to_square(int sq){
+std::string index_to_square(int sq)
+{
     int file = sq % 8;
     int rank = sq / 8;
     char fileChar = static_cast<char>('a' + file);
@@ -23,17 +24,21 @@ std::string index_to_square(int sq){
 }
 
 // go from the string representing the move to an actual move
-Move string_to_move(const std::string &line){
+Move string_to_move(const std::string &line)
+{
     // check if the line is valid (it had at least 4 characters)
-    if(line.size() < 4){
+    if (line.size() < 4)
+    {
         return Move{-1, -1};
     }
 
     // convert from string to index
-    auto parse_sq = [](char fileChar, char rankChar) -> int{
+    auto parse_sq = [](char fileChar, char rankChar) -> int
+    {
         int file = fileChar - 'a';
         int rank = rankChar - '1';
-        if(file < 0 || file > 7 || rank < 0 || rank > 7){
+        if (file < 0 || file > 7 || rank < 0 || rank > 7)
+        {
             return -1;
         }
         return rank * 8 + file;
@@ -47,19 +52,23 @@ Move string_to_move(const std::string &line){
 }
 
 // helper function to go from a move to a string representing the move
-std::string move_to_string(const Move &m){
-    if(m.from < 0 || m.to < 0){
+std::string move_to_string(const Move &m)
+{
+    if (m.from < 0 || m.to < 0)
+    {
         return "";
     }
     return index_to_square(m.from) + index_to_square(m.to);
 }
 
-int main(int argc, char *argv[]){
+int main(int argc, char *argv[])
+{
     std::string history_file = ""; // file containing all previous moves
     std::string output_file = "";  // file where we will write out next move
 
     // loop through all arguments passed to program sand store file that comes after "-H" and "-m"
-    for(int i = 1; i < argc; i++){
+    for (int i = 1; i < argc; i++)
+    {
         std::string arg = argv[i];
 
         if (arg == "-H" && i + 1 < argc)
@@ -81,7 +90,6 @@ int main(int argc, char *argv[]){
 
     // store all the previous moves in history_moves
     std::vector<Move> history_moves;
-    
 
     // Read the history file and store all previous moves
     if (!history_file.empty())
@@ -115,6 +123,10 @@ int main(int argc, char *argv[]){
     //(even is white, odd is black)
     board.team_white = (history_moves.size() % 2 == 0);
 
+    // for testing purposes: print the board after the history moves have been played
+    std::cout << "Position after history:\n";
+    board.print_board();
+
     // Choose the next move
     // FOR NOW WE ARE IMPLEMENTING THE NEXT MOVE TO BE A RANDOM MOVE
     Move next = board.get_random_move();
@@ -135,8 +147,14 @@ int main(int argc, char *argv[]){
                   << output_file << "' for writing\n";
         return 1;
     }
-    // According to the spec: "ASCII file: next move (only the one, next move)"
+    // print the next move into the file
     out << next_move_str << '\n';
+
+    // for testing purposes:
+    // apply move and show resulting position
+    board.make_move(next);
+    std::cout << "Position after engine move:\n";
+    board.print_board();
 
     return 0;
 }

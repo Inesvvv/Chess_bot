@@ -38,7 +38,10 @@ class Board {
 
         int count_checkers(bool white_to_move) const; // detect check and double check
 
+        //for testing purposes
+        void print_board() const;
     private:
         int pop_lsb(Bitboards::Bitboard &b) const; // utilty fucntion tat iterats through all positions to find where the pieces are 
-};
+
+    };
 
