@@ -4,6 +4,7 @@
 // Created: 2025-11-28
 
 #include "board.h"
+#include "magic.h"
 #include <cstdlib>
 #include <iostream>
 
@@ -19,6 +20,7 @@ Board::Board()
     Bitboards::init_bitboards();
     Bitboards::init_attack_tables();
     // Bitboards::init_masks();
+    Magic::init_magics(); //init magic bitboards for slider attacks
 }
 
 // utility fuction that pops least significant and returns index (= gets all positions of our pieces)
@@ -31,7 +33,164 @@ int Board::pop_lsb(Bitboards::Bitboard &b) const
     return position;
 }
 
-// ================ GENERATE ALL THE MOVES ===========================
+// Checks if a square is attacked by a given color (opponent)
+bool Board::is_square_attacked(int square, bool by_white) const {
+    Bitboard sq_bit = bit(square);
+    
+    if (by_white) {
+        // white pawn attacks
+        if (pawn_attacks_black[square] & white_pawns) return true;
+        
+        // white knight attacks
+        if (knight_attacks[square] & white_knights) return true;
+        
+        // white king attacks
+        if (king_attacks[square] & white_kings) return true;
+        
+        // white bishop and queen attacks (diagonal)
+        Bitboard bishop_attackers = Magic::get_bishop_attacks(square, occupied);
+        if (bishop_attackers & (white_bishops | white_queens)) return true;
+        
+        // white rook and queen attacks (straight)
+        Bitboard rook_attackers = Magic::get_rook_attacks(square, occupied);
+        if (rook_attackers & (white_rooks | white_queens)) return true;
+        
+    } else {
+        // black pawn attacks
+        if (pawn_attacks_white[square] & black_pawns) return true;
+        
+        // black knight attacks
+        if (knight_attacks[square] & black_knights) return true;
+        
+        // black king attacks
+        if (king_attacks[square] & black_kings) return true;
+        
+        // black bishop and queen attacks (diagonal)
+        Bitboard bishop_attackers = Magic::get_bishop_attacks(square, occupied);
+        if (bishop_attackers & (black_bishops | black_queens)) return true;
+        
+        // black rook and queen attacks (straight)
+        Bitboard rook_attackers = Magic::get_rook_attacks(square, occupied);
+        if (rook_attackers & (black_rooks | black_queens)) return true;
+    }
+    
+    return false;
+}
+
+// helper function to find king's square
+int Board::find_king(bool by_white) const {
+   Bitboard king = by_white ? white_kings : black_kings;
+  
+   if (king == 0){
+       return -1;
+   }
+
+
+   //check whether king bitboard has a bit on a square i
+   for(int i = 0; i < 64; i++) {
+       if(king & bit(i)){
+           return i;
+       }
+   }
+
+
+   return -1; //fallback but shouldn't happen
+}
+
+// detect check and double check
+int Board::count_checkers(bool white_to_move) const {
+  
+    // find the king's sqaure
+    int king_square = find_king(white_to_move);
+    int king_rank = king_square / 8;
+    int king_file = king_square % 8;
+
+    bool by_white = !white_to_move;
+
+    int attackers = 0;
+
+    // pawn check
+    if(by_white){
+        if(king_rank > 0){
+            if(king_file < 7) {
+                int from = (king_rank - 1) * 8 + (king_file + 1);
+                if(white_pawns & bit(from)){
+                    attackers += 1;
+                }
+            }
+            if (king_file > 0){
+                int from = (king_rank - 1) * 8 + (king_file - 1);
+                if(white_pawns & bit(from)){
+                    attackers += 1;
+                }
+            }
+        }
+    } else {
+        if(king_rank < 7){
+            if (king_file > 0){
+                int from = (king_rank + 1) * 8 + (king_file - 1);
+                if (black_pawns & bit(from)){
+                    attackers += 1;
+                }
+            }
+            if (king_file < 7) {
+                int from = (king_rank + 1) * 8 + (king_file + 1);
+                if (black_pawns & bit(from)){
+                    attackers += 1;
+                }
+            }
+        }
+    }
+
+
+    //knight check
+    Bitboard knight_mask = knight_attacks[king_square];
+    Bitboard knight_attackers = knight_mask & (by_white ? white_knights : black_knights);
+
+
+    for (int i = 0; i < 64; i++){
+        if (knight_attackers & bit(i)){
+            attackers += 1;
+        }
+    }
+
+
+    // king check
+    Bitboard king_mask = king_attacks[king_square];
+    Bitboard king_attackers = king_mask & (by_white ? white_kings : black_kings);
+
+
+    for (int i = 0; i < 64; i++){
+        if (king_attackers & bit(i)) {
+            attackers += 1;
+        }
+    }
+
+    // bishop and queen diagonal check
+    Bitboard bishop_rays = Magic::get_bishop_attacks(king_square, occupied);
+    Bitboard diagonal_attackers = bishop_rays & ((by_white ? white_bishops : black_bishops) | (by_white ? white_queens : black_queens));
+
+
+    for (int i = 0; i < 64; i++){
+        if (diagonal_attackers & bit(i)) {
+            attackers += 1;
+        }
+    }
+
+    // rook and queen straight check
+    Bitboard rook_rays = Magic::get_rook_attacks(king_square, occupied);
+    Bitboard straight_attackers = rook_rays & ((by_white ? white_rooks : black_rooks) | (by_white ? white_queens : black_queens));
+
+    for (int i = 0; i < 64; i++){
+        if (straight_attackers & bit(i)) {
+            attackers += 1;
+        }
+    }
+
+    return attackers;
+}
+
+
 std::vector<Move> Board::generate_moves() const
 {
     std::vector<Move> moves; // create our vector that will contain all the possible moves
@@ -100,6 +259,72 @@ std::vector<Move> Board::generate_moves() const
             int to = pop_lsb(temp_attacks);
             moves.push_back({from, to});
         }
+
+        if (team_white) {
+            // White kingside castling (e1 -> g1)
+            if (white_castle_kingside) {
+                // Check: king on e1, rook on h1, f1 and g1 are empty
+                if ((white_kings & bit(sq(4, 0))) &&  // King on e1
+                    (white_rooks & bit(sq(7, 0))) &&  // Rook on h1
+                    !(occupied & bit(sq(5, 0))) &&    // f1 empty
+                    !(occupied & bit(sq(6, 0)))) {    // g1 empty
+                    // King must not be in check, not pass through check, not land in check
+                    if (!is_square_attacked(sq(4, 0), false) &&  // e1 not attacked
+                        !is_square_attacked(sq(5, 0), false) &&  // f1 not attacked
+                        !is_square_attacked(sq(6, 0), false)) {  // g1 not attacked
+                        moves.push_back(Move(sq(4, 0), sq(6, 0), CASTLE_KINGSIDE));
+                    }
+                }
+            }
+            
+            // White queenside castling (e1 -> c1)
+            if (white_castle_queenside) {
+                // Check: king on e1, rook on a1, b1, c1, and d1 are empty
+                if ((white_kings & bit(sq(4, 0))) &&  // King on e1
+                    (white_rooks & bit(sq(0, 0))) &&  // Rook on a1
+                    !(occupied & bit(sq(1, 0))) &&    // b1 empty
+                    !(occupied & bit(sq(2, 0))) &&    // c1 empty
+                    !(occupied & bit(sq(3, 0)))) {    // d1 empty
+                    // King must not be in check, not pass through check, not land in check
+                    if (!is_square_attacked(sq(4, 0), false) &&  // e1 not attacked
+                        !is_square_attacked(sq(3, 0), false) &&  // d1 not attacked
+                        !is_square_attacked(sq(2, 0), false)) {  // c1 not attacked
+                        moves.push_back(Move(sq(4, 0), sq(2, 0), CASTLE_QUEENSIDE));
+                    }
+                }
+            }
+        } else {
+            // Black kingside castling (e8 -> g8)
+            if (black_castle_kingside) {
+                if ((black_kings & bit(sq(4, 7))) &&  // King on e8
+                    (black_rooks & bit(sq(7, 7))) &&  // Rook on h8
+                    !(occupied & bit(sq(5, 7))) &&    // f8 empty
+                    !(occupied & bit(sq(6, 7)))) {    // g8 empty
+                    if (!is_square_attacked(sq(4, 7), true) &&  // e8 not attacked
+                        !is_square_attacked(sq(5, 7), true) &&  // f8 not attacked
+                        !is_square_attacked(sq(6, 7), true)) {  // g8 not attacked
+                        moves.push_back(Move(sq(4, 7), sq(6, 7), CASTLE_KINGSIDE));
+                    }
+                }
+            }
+            
+            // Black queenside castling (e8 -> c8)
+            if (black_castle_queenside) {
+                if ((black_kings & bit(sq(4, 7))) &&  // King on e8
+                    (black_rooks & bit(sq(0, 7))) &&  // Rook on a8
+                    !(occupied & bit(sq(1, 7))) &&    // b8 empty
+                    !(occupied & bit(sq(2, 7))) &&    // c8 empty
+                    !(occupied & bit(sq(3, 7)))) {    // d8 empty
+                    if (!is_square_attacked(sq(4, 7), true) &&  // e8 not attacked
+                        !is_square_attacked(sq(3, 7), true) &&  // d8 not attacked
+                        !is_square_attacked(sq(2, 7), true)) {  // c8 not attacked
+                        moves.push_back(Move(sq(4, 7), sq(2, 7), CASTLE_QUEENSIDE));
+                    }
+                }
+            }
+        }
+
+        
     }
 
     // =========== PAWN MOVES ============
@@ -117,367 +342,135 @@ std::vector<Move> Board::generate_moves() const
     }
 
     Bitboard temp_pawns = pawns;
-    while (temp_pawns)
-    {
+    while (temp_pawns){
         int from = pop_lsb(temp_pawns);
-        int to;
-        if (team_white)
-        { // need to differentiate because white move from bottom to top and black from top to bottom
-            to = from + 8;
-            if (to < 64 && !(occupied & bit(to)))
-            {
+        // FOR PUSHES 
+        if (team_white) { // need to differentiate because white move from bottom to top and black from top to bottom
+            int to = from + 8; 
+            if (to < 64 && !(occupied & bit(to))) {
                 moves.push_back({from, to});
+                // double push (only from rank 2 so index rank = 1)
+                if (from / 8 == 1) {
+                    int to2 = from + 16;
+                    if (!(occupied & bit(to2))) moves.push_back(Move(from, to2, DOUBLE_PUSH));
+                    }
+                }
             }
-            int left_capture = from + 7; // here left_capture is +7 because the bitboard is from left to right and bottom to top
-            if (left_capture < 64 && (enemy_pawns & bit(left_capture)))
-            {
-                moves.push_back({from, left_capture});
-            }
-            int right_capture = from + 9;
-            if (right_capture < 64 && (enemy_pawns & bit(right_capture)))
-            {
-                moves.push_back({from, right_capture});
-            }
-        }
-        else
-        {
-            to = from - 8;
-            if (to >= 0 && !(occupied & bit(to)))
-            {
+        else{
+            int to = from - 8; 
+            if (to >= 0 && !(occupied & bit(to))){
                 moves.push_back({from, to});
-            }
+                // double push (from rank 7)
+                if (from / 8 == 6) {
+                    int to2 = from - 16;
+                    if (!(occupied & bit(to2))) moves.push_back(Move(from, to2, DOUBLE_PUSH));
 
-            int left_capture = from - 9;
-            if (left_capture >= 0 && (enemy_pawns & bit(left_capture)))
-            {
-                moves.push_back({from, left_capture});
+                    }
+                }
+        
             }
-
-            int right_capture = from - 7;
-            if (right_capture >= 0 && (enemy_pawns & bit(right_capture)))
-            {
-                moves.push_back({from, right_capture});
-            }
+        // ==== capture moves ==== 
+        Bitboard attacks;
+        if (team_white){
+            attacks = pawn_attacks_white[from];
+        } else {
+            attacks = pawn_attacks_black[from];
         }
-    }
+        Bitboard capture_targets = attacks & enemy_pieces;
+        Bitboard temp_caps = capture_targets;
+        while (temp_caps){
+            int to = pop_lsb(temp_caps);
+            moves.push_back(Move(from, to, CAPTURE));
+            }
+        // En passant capture 
+        if (ep_square != -1){ // havent added the ep_square updating yet so always -1
+            Bitboard ep_attack;
+            if (team_white){
+                ep_attack = pawn_ep_attacks_white[from][ep_square];
+                }
+            else{
+                ep_attack = pawn_ep_attacks_black[from][ep_square];
+                }
+            
+            if (ep_attack) moves.push_back(Move(from, ep_square, EN_PASSANT));
+            }
 
-    // ========== TOWER MOVES ==============
-    Bitboard rooks;
-    Bitboard enemy_rooks;
-    if (team_white)
-    {
-        rooks = white_rooks;
-        enemy_rooks = black_rooks;
-    }
-    else
-    {
-        rooks = black_rooks;
-        enemy_rooks = white_rooks;
-    }
+    
+        }
 
+    // ========== ROOK MOVES ==============
+    Bitboard rooks = team_white ? white_rooks : black_rooks;
     Bitboard temp_rooks = rooks;
-    while (temp_rooks)
-    {
+    while (temp_rooks){
         int from = pop_lsb(temp_rooks);
-        int to;
-        const int rank = from / 8;
-        const int file = from % 8;
-        // increasing in rank
-        for (int r = 1; r < 8 - rank; r++)
-        {
-            to = from + 8 * r; // increasing in rank for rook is in steps of (+8) bits in the bitboard
+        Bitboard attacks = Magic::get_rook_attacks(from, occupied) & ~pieces;
+    
+        Bitboard temp_attacks = attacks;
+        while (temp_attacks){
+            int to = pop_lsb(temp_attacks);
+            moves.push_back({from, to});
+            }
+        }
 
-            if (to < 0 || to >= 64)
-                break;
-            if (!(pieces & bit(to)))
-                moves.push_back({from, to});
-            if (occupied & bit(to))
-            {
-                break; // stop sliding rook if collision with another piece
-            }
-        }
-        // decreasing in rank
-        for (int r = rank; r > 0; r--)
-        {
-            to = from - 8 * r; // decreasing in rank for rook is in steps of (-8) bits in the bitboard
-            if (to < 0 || to >= 64)
-                break;
-            if (!(pieces & bit(to)))
-                moves.push_back({from, to});
-            if (occupied & bit(to))
-            {
-                break;
-            }
-        }
-        // increasing in file
-        for (int r = 1; r < 8 - file; r++)
-        {
-            to = from + r; // increasing in file for rook is in steps of (+1) bits in the bitboard
-            if (to < 0 || to >= 64)
-                break;
-            if (to / 8 != rank)
-                break;
-            if (!(pieces & bit(to)))
-                moves.push_back({from, to});
-            if (occupied & bit(to))
-            {
-                break;
-            }
-        }
-        // decreasing in file
-        for (int r = file; r > 0; r--)
-        {
-            to = from - r; // decreasing in file for rook is in steps of (-1) bits in the bitboard
-            if (to < 0 || to >= 64)
-                break;
-            if (to / 8 != rank)
-                break;
-            if (!(pieces & bit(to)))
-                moves.push_back({from, to});
-            if (occupied & bit(to))
-            {
-                break;
-            }
-        }
-    }
     // ========== BISHOP MOVES ============
-    Bitboard bishops;
-    Bitboard enemy_bishops;
-    if (team_white)
-    {
-        bishops = white_bishops;
-        enemy_bishops = black_bishops;
-    }
-    else
-    {
-        bishops = black_bishops;
-        enemy_bishops = white_bishops;
-    }
+    Bitboard bishops = team_white ? white_bishops : black_bishops;
     Bitboard temp_bishops = bishops;
-    while (temp_bishops)
-    {
+    while (temp_bishops){
         int from = pop_lsb(temp_bishops);
-        int to;
-        int rank = from / 8;
-        int file = from % 8;
-        // Upper right diagonal
-        for (int step = 1; step < 8; step++)
-        {
-            int r = rank + step;
-            int f = file + step;
-            if (r >= 8 || f >= 8)
-                break;
-            to = r * 8 + f;
-
-            if (!(pieces & bit(to)))
-                moves.push_back({from, to}); // handles the cases when enemy pieces are in the position (adds the move if its enemy piece or empty)
-            if (occupied & bit(to))
-                break; // stops the loop when there is a piece on the path
+        Bitboard attacks = Magic::get_bishop_attacks(from, occupied) & ~pieces;
+    
+        Bitboard temp_attacks = attacks;
+        while (temp_attacks){
+            int to = pop_lsb(temp_attacks);
+            moves.push_back({from, to});
+            }
         };
-
-        // Upper left diagonal
-        for (int step = 1; step < 8; step++)
-        {
-            int r = rank + step;
-            int f = file - step;
-            if (r >= 8 || f < 0)
-                break;
-            to = r * 8 + f;
-            if (!(pieces & bit(to)))
-                moves.push_back({from, to});
-            if (occupied & bit(to))
-                break;
-        }
-
-        // Lower right diagonal
-        for (int step = 1; step < 8; step++)
-        {
-            int r = rank - step;
-            int f = file + step;
-            if (r < 0 || f >= 8)
-                break;
-            to = r * 8 + f;
-
-            if (!(pieces & bit(to)))
-                moves.push_back({from, to});
-            if (occupied & bit(to))
-                break;
-        };
-
-        // Lower left diagonal
-        for (int step = 1; step < 8; step++)
-        {
-            int r = rank - step;
-            int f = file - step;
-            if (r < 0 || f < 0)
-                break;
-            to = r * 8 + f;
-
-            if (!(pieces & bit(to)))
-                moves.push_back({from, to});
-            if (occupied & bit(to))
-                break;
-        };
-    }
+    
 
     // =========== QUEEN MOVES ============
     // for queen moves we just recycle bishop and rook moves
-    Bitboard queens;
-    Bitboard enemy_queens;
-    if (team_white)
-    {
-        queens = white_queens;
-        enemy_queens = black_queens;
-    }
-    else
-    {
-        queens = black_queens;
-        enemy_queens = white_queens;
-    }
+    Bitboard queens = team_white ? white_queens : black_queens;
     Bitboard temp_queens = queens;
-    while (temp_queens)
-    {
+    while (temp_queens){
         int from = pop_lsb(temp_queens);
-        int to;
-        const int rank = from / 8;
-        const int file = from % 8;
-
-        // ROOK MOVES (Horizontal and Vertical)
-
-        // increasing rank
-        for (int r = 1; r < 8 - rank; r++)
-        {
-            to = from + 8 * r;
-            if (to < 0 || to >= 64)
-                break;
-            if (!(pieces & bit(to)))
-                moves.push_back({from, to});
-            if (occupied & bit(to))
-            {
-                break; // Stop on collision
+        Bitboard attacks = Magic::get_queen_attacks(from, occupied) & ~pieces;
+    
+        Bitboard temp_attacks = attacks;
+        while (temp_attacks){
+            int to = pop_lsb(temp_attacks);
+            moves.push_back({from, to});
             }
-        }
-
-        // decreasing rank
-        for (int r = 1; r <= rank; r++)
-        {
-            to = from - 8 * r;
-            if (to < 0 || to >= 64)
-                break;
-            if (!(pieces & bit(to)))
-                moves.push_back({from, to});
-            if (occupied & bit(to))
-            {
-                break; // Stop on collision
-            }
-        }
-
-        // increasing file
-        for (int r = 1; r < 8 - file; r++)
-        {
-            if (to < 0 || to >= 64)
-                break;
-            if (to / 8 != rank)
-                break; // Stop on wrap-around
-            if (!(pieces & bit(to)))
-                moves.push_back({from, to});
-            if (occupied & bit(to))
-            {
-                break; // Stop on collision
-            }
-        }
-
-        // decreasing file
-        for (int r = 1; r <= file; r++)
-        {
-            to = from - r;
-            if (to < 0 || to >= 64)
-                break;
-            if (to / 8 != rank)
-                break; // Stop on wrap-around
-            if (!(pieces & bit(to)))
-                moves.push_back({from, to});
-            if (occupied & bit(to))
-            {
-                break; // Stop on collision
-            }
-        }
-
-        // BISHOP MOVES (Diagonals)
-
-        // Upper right diagonal (+9)
-        for (int step = 1; step < 8; step++)
-        {
-            int r = rank + step;
-            int f = file + step;
-            if (r >= 8 || f >= 8)
-                break; // Check board bounds
-            to = r * 8 + f;
-
-            if (!(pieces & bit(to)))
-                moves.push_back({from, to});
-            if (occupied & bit(to))
-                break; // stops the loop when there is a piece on the path
         };
-
-        // Upper left diagonal (+7)
-        for (int step = 1; step < 8; step++)
-        {
-            int r = rank + step;
-            int f = file - step;
-            if (r >= 8 || f < 0)
-                break; // Check board bounds
-            to = r * 8 + f;
-            if (!(pieces & bit(to)))
-                moves.push_back({from, to});
-            if (occupied & bit(to))
-                break;
-        }
-
-        // Lower right diagonal (-7)
-        for (int step = 1; step < 8; step++)
-        {
-            int r = rank - step;
-            int f = file + step;
-            if (r < 0 || f >= 8)
-                break; // Check board bounds
-            to = r * 8 + f;
-
-            if (!(pieces & bit(to)))
-                moves.push_back({from, to});
-            if (occupied & bit(to))
-                break;
-        };
-
-        // Lower left diagonal (-9)
-        for (int step = 1; step < 8; step++)
-        {
-            int r = rank - step;
-            int f = file - step;
-            if (r < 0 || f < 0)
-                break; // Check board bounds
-            to = r * 8 + f;
-
-            if (!(pieces & bit(to)))
-                moves.push_back({from, to});
-            if (occupied & bit(to))
-                break;
-        };
-    }
 
     return moves;
+}
+
+// generate legal moves
+std::vector<Move> Board::generate_legal_moves() const {
+    std::vector<Move> psuedo_legal = generate_moves();
+    std::vector<Move> legal;
+
+    for(int i = 0; i < psuedo_legal.size(); i++) {
+        Move m = psuedo_legal[i];
+
+        Board copy = *this;
+        copy.make_move(m);
+        
+        int king_square = copy.find_king(!copy.team_white);
+        bool in_check = copy.is_square_attacked(king_square, copy.team_white);
+
+        if (!in_check){
+            legal.push_back(m);
+        }
+    }
+
+    return legal;
 }
 
 // for now, return a random move from all moves
 Move Board::get_random_move() const
 {
-    std::vector<Move> moves = generate_moves();
-    std::cout << "Generated " << moves.size() << " moves.\n";
-    std::cout << "Moves:\n";
-    for (const auto &mv : moves)
-    {
-        std::cout << "From " << mv.from << " to " << mv.to << "\n";
-    }
+    std::vector<Move> moves = generate_legal_moves();
 
     // for now this is a temporary output if there are no legal moves; avoids division by zero
     if (moves.empty())
@@ -491,13 +484,106 @@ Move Board::get_random_move() const
 }
 
 // applies a given move to the board and updates who the current player is
-void Board::make_move(const Move &move)
-{
+void Board::make_move(const Move &move){
     int from = move.from;
     int to = move.to;
 
     Bitboard from_bit = bit(from);
     Bitboard to_bit = bit(to);
+
+    // ==== Update make move with move types ======= 
+    ep_square = -1; // reset en passant square by default
+    bool isPawn = false;
+    if (team_white) isPawn = (white_pawns & from_bit);
+    else isPawn = (black_pawns & from_bit);
+    if (move.flag == DOUBLE_PUSH){
+        if (team_white) {
+            ep_square = from + 8; // square behind the pawn after double push
+            }
+        else {
+            ep_square = from - 8;
+            }
+        }
+    // === En passant capture == 
+    if (move.flag == EN_PASSANT){
+        int captured_pawn_square;
+        if (team_white){
+            captured_pawn_square = to - 8; 
+            black_pawns &= ~bit(captured_pawn_square); // remove the captured pawn
+            }
+        else{
+            captured_pawn_square = to + 8;
+            white_pawns &= ~bit(captured_pawn_square);
+            };
+        // move the pawn to to 
+        if (team_white) {
+            white_pawns &= ~from_bit;
+            white_pawns |= to_bit;
+            } 
+        else {
+            black_pawns &= ~from_bit;
+            black_pawns |= to_bit;
+            }
+        // Skip to the end of the move handling logic
+        // Update the general bitboards and switch teams
+        all_white = white_pawns | white_knights | white_bishops | white_rooks | white_queens | white_kings;
+        all_black = black_pawns | black_knights | black_bishops | black_rooks | black_queens | black_kings;
+        occupied = all_white | all_black;
+
+        // Switch teams
+        team_white = !team_white;
+        return;
+        }
+    // === Promotion===
+    bool is_promotion = (move.flag == PROMO_QUEEN || move.flag == PROMO_ROOK || 
+                        move.flag == PROMO_BISHOP || move.flag == PROMO_KNIGHT || 
+                        move.flag == PROMO_CAPTURE_Q || move.flag == PROMO_CAPTURE_R || 
+                        move.flag == PROMO_CAPTURE_B || move.flag == PROMO_CAPTURE_K);
+    if (is_promotion && isPawn){
+        // add the promoted piece 
+        if (team_white){
+            white_pawns &= ~from_bit;
+            if (move.flag == PROMO_QUEEN || move.flag == PROMO_CAPTURE_Q) white_queens |= to_bit;
+            else if (move.flag == PROMO_ROOK || move.flag == PROMO_CAPTURE_R) white_rooks |= to_bit;
+            else if (move.flag == PROMO_BISHOP || move.flag == PROMO_CAPTURE_B) white_bishops |= to_bit;
+            else if (move.flag == PROMO_KNIGHT || move.flag == PROMO_CAPTURE_K) white_knights |= to_bit;
+            }
+        else{
+            black_pawns &= ~from_bit;
+            if (move.flag == PROMO_QUEEN || move.flag == PROMO_CAPTURE_Q) black_queens |= to_bit;
+            else if (move.flag == PROMO_ROOK || move.flag == PROMO_CAPTURE_R) black_rooks |= to_bit;
+            else if (move.flag == PROMO_BISHOP || move.flag == PROMO_CAPTURE_B) black_bishops |= to_bit;
+            else if (move.flag == PROMO_KNIGHT || move.flag == PROMO_CAPTURE_K) black_knights |= to_bit;
+            }
+        // If capture type remove the captured piece
+        if (move.flag == PROMO_CAPTURE_Q || move.flag == PROMO_CAPTURE_R ||
+            move.flag == PROMO_CAPTURE_B || move.flag == PROMO_CAPTURE_K){
+            if (team_white){
+                black_pawns &= ~to_bit;
+                black_knights &= ~to_bit;
+                black_bishops &= ~to_bit;
+                black_rooks &= ~to_bit;
+                black_queens &= ~to_bit;
+                black_kings &= ~to_bit;
+                }
+            else{
+                white_pawns &= ~to_bit;
+                white_knights &= ~to_bit; 
+                white_bishops &= ~to_bit;  
+                white_rooks &= ~to_bit;
+                white_queens &= ~to_bit;
+                white_kings &= ~to_bit;
+                }    
+            }
+        // skip to the end and update the bitboards 
+        all_white = white_pawns | white_knights | white_bishops | white_rooks | white_queens | white_kings;
+        all_black = black_pawns | black_knights | black_bishops | black_rooks | black_queens | black_kings;
+        occupied  = all_white | all_black;
+
+        team_white = !team_white;
+        return; 
+        
+    }
 
     // remove captured pieces
     if (team_white)
@@ -541,6 +627,9 @@ void Board::make_move(const Move &move)
         {
             white_rooks &= ~from_bit;
             white_rooks |= to_bit;
+
+            if (from == sq(0, 0)) white_castle_queenside = false;
+            if (from == sq(7, 0)) white_castle_kingside = false;
         }
         else if (white_queens & from_bit)
         {
@@ -551,6 +640,9 @@ void Board::make_move(const Move &move)
         {
             white_kings &= ~from_bit;
             white_kings |= to_bit;
+
+            white_castle_kingside = false;
+            white_castle_queenside = false;
         }
     }
     else
@@ -574,6 +666,9 @@ void Board::make_move(const Move &move)
         {
             black_rooks &= ~from_bit;
             black_rooks |= to_bit;
+
+            if (from == sq(0, 7)) black_castle_queenside = false;
+            if (from == sq(7, 7)) black_castle_kingside = false;
         }
         else if (black_queens & from_bit)
         {
@@ -584,6 +679,9 @@ void Board::make_move(const Move &move)
         {
             black_kings &= ~from_bit;
             black_kings |= to_bit;
+
+            black_castle_kingside = false;
+            black_castle_queenside = false;
         }
     }
 
@@ -595,3 +693,4 @@ void Board::make_move(const Move &move)
     // switch teams
     team_white = !team_white;
 }
+

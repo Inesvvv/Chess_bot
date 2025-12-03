@@ -81,6 +81,7 @@ int main(int argc, char *argv[]){
 
     // store all the previous moves in history_moves
     std::vector<Move> history_moves;
+    
 
     // Read the history file and store all previous moves
     if (!history_file.empty())
