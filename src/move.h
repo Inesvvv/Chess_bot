@@ -14,15 +14,14 @@ enum MoveFlag : uint8_t {
     CAPTURE          = 1,
     DOUBLE_PUSH      = 2,
     EN_PASSANT       = 3,
-    // Uncomment later when we add promotion implementation 
-    /* PROMO_QUEEN      = 4,
+    PROMO_QUEEN      = 4,
     PROMO_ROOK       = 5,
     PROMO_BISHOP     = 6,
     PROMO_KNIGHT     = 7,
     PROMO_CAPTURE_Q  = 8,
     PROMO_CAPTURE_R  = 9,
     PROMO_CAPTURE_B  = 10,
-    PROMO_CAPTURE_N  = 11 */
+    PROMO_CAPTURE_N  = 11 
 };
 
 

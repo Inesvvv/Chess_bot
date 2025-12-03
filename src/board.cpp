@@ -239,13 +239,106 @@ Move Board::get_random_move() const
 }
 
 // applies a given move to the board and updates who the current player is
-void Board::make_move(const Move &move)
-{
+void Board::make_move(const Move &move){
     int from = move.from;
     int to = move.to;
 
     Bitboard from_bit = bit(from);
     Bitboard to_bit = bit(to);
+
+    // ==== Update make move with move types ======= 
+    ep_square = -1; // reset en passant square by default
+    bool isPawn = false;
+    if (team_white) isPawn = (white_pawns & from_bit);
+    else isPawn = (black_pawns & from_bit);
+    if (move.flag == DOUBLE_PUSH){
+        if (team_white) {
+            ep_square = from + 8; // square behind the pawn after double push
+            }
+        else {
+            ep_square = from - 8;
+            }
+        }
+    // === En passant capture == 
+    if (move.flag == EN_PASSANT){
+        int captured_pawn_square;
+        if (team_white){
+            captured_pawn_square = to - 8; 
+            black_pawns &= ~bit(captured_pawn_square); // remove the captured pawn
+            }
+        else{
+            captured_pawn_square = to + 8;
+            white_pawns &= ~bit(captured_pawn_square);
+            };
+        // move the pawn to to 
+        if (team_white) {
+            white_pawns &= ~from_bit;
+            white_pawns |= to_bit;
+            } 
+        else {
+            black_pawns &= ~from_bit;
+            black_pawns |= to_bit;
+            }
+        // Skip to the end of the move handling logic
+        // Update the general bitboards and switch teams
+        all_white = white_pawns | white_knights | white_bishops | white_rooks | white_queens | white_kings;
+        all_black = black_pawns | black_knights | black_bishops | black_rooks | black_queens | black_kings;
+        occupied = all_white | all_black;
+
+        // Switch teams
+        team_white = !team_white;
+        return;
+        }
+    // === Promotion===
+    bool is_promotion = (move.flag == PROMO_QUEEN || move.flag == PROMO_ROOK || 
+                        move.flag == PROMO_BISHOP || move.flag == PROMO_KNIGHT || 
+                        move.flag == PROMO_CAPTURE_Q || move.flag == PROMO_CAPTURE_R || 
+                        move.flag == PROMO_CAPTURE_B || move.flag == PROMO_CAPTURE_K);
+    if (is_promotion && isPawn){
+        // add the promoted piece 
+        if (team_white){
+            white_pawns &= ~from_bit;
+            if (move.flag == PROMO_QUEEN || move.flag == PROMO_CAPTURE_Q) white_queens |= to_bit;
+            else if (move.flag == PROMO_ROOK || move.flag == PROMO_CAPTURE_R) white_rooks |= to_bit;
+            else if (move.flag == PROMO_BISHOP || move.flag == PROMO_CAPTURE_B) white_bishops |= to_bit;
+            else if (move.flag == PROMO_KNIGHT || move.flag == PROMO_CAPTURE_K) white_knights |= to_bit;
+            }
+        else{
+            black_pawns &= ~from_bit;
+            if (move.flag == PROMO_QUEEN || move.flag == PROMO_CAPTURE_Q) black_queens |= to_bit;
+            else if (move.flag == PROMO_ROOK || move.flag == PROMO_CAPTURE_R) black_rooks |= to_bit;
+            else if (move.flag == PROMO_BISHOP || move.flag == PROMO_CAPTURE_B) black_bishops |= to_bit;
+            else if (move.flag == PROMO_KNIGHT || move.flag == PROMO_CAPTURE_K) black_knights |= to_bit;
+            }
+        // If capture type remove the captured piece
+        if (move.flag == PROMO_CAPTURE_Q || move.flag == PROMO_CAPTURE_R ||
+            move.flag == PROMO_CAPTURE_B || move.flag == PROMO_CAPTURE_K){
+            if (team_white){
+                black_pawns &= ~to_bit;
+                black_knights &= ~to_bit;
+                black_bishops &= ~to_bit;
+                black_rooks &= ~to_bit;
+                black_queens &= ~to_bit;
+                black_kings &= ~to_bit;
+                }
+            else{
+                white_pawns &= ~to_bit;
+                white_knights &= ~to_bit; 
+                white_bishops &= ~to_bit;  
+                white_rooks &= ~to_bit;
+                white_queens &= ~to_bit;
+                white_kings &= ~to_bit;
+                }    
+            }
+        // skip to the end and update the bitboards 
+        all_white = white_pawns | white_knights | white_bishops | white_rooks | white_queens | white_kings;
+        all_black = black_pawns | black_knights | black_bishops | black_rooks | black_queens | black_kings;
+        occupied  = all_white | all_black;
+
+        team_white = !team_white;
+        return; 
+        
+    }
 
     // remove captured pieces
     if (team_white)
@@ -343,3 +436,4 @@ void Board::make_move(const Move &move)
     // switch teams
     team_white = !team_white;
 }
+
