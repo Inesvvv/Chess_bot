@@ -21,7 +21,9 @@ enum MoveFlag : uint8_t {
     PROMO_CAPTURE_Q  = 8,
     PROMO_CAPTURE_R  = 9,
     PROMO_CAPTURE_B  = 10,
-    PROMO_CAPTURE_N  = 11 
+    PROMO_CAPTURE_K  = 11,
+    CASTLE_KINGSIDE  = 12,    
+    CASTLE_QUEENSIDE = 13,
 };
 
 

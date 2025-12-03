@@ -31,7 +31,50 @@ int Board::pop_lsb(Bitboards::Bitboard &b) const
     b &= b - 1;                        // removes the least significant bit (= the piece we just found)
     return position;
 }
-
+// ============= IS SQUARE ATTACKED =================
+// Checks if a square is attacked by a given color
+bool Board::is_square_attacked(int square, bool by_white) const {
+    Bitboard sq_bit = bit(square);
+    
+    if (by_white) {
+        // Check white pawn attacks
+        if (pawn_attacks_black[square] & white_pawns) return true;
+        
+        // Check white knight attacks
+        if (knight_attacks[square] & white_knights) return true;
+        
+        // Check white king attacks
+        if (king_attacks[square] & white_kings) return true;
+        
+        // Check white bishop/queen attacks (diagonal)
+        Bitboard bishop_attackers = Magic::get_bishop_attacks(square, occupied);
+        if (bishop_attackers & (white_bishops | white_queens)) return true;
+        
+        // Check white rook/queen attacks (straight)
+        Bitboard rook_attackers = Magic::get_rook_attacks(square, occupied);
+        if (rook_attackers & (white_rooks | white_queens)) return true;
+        
+    } else {
+        // Check black pawn attacks
+        if (pawn_attacks_white[square] & black_pawns) return true;
+        
+        // Check black knight attacks
+        if (knight_attacks[square] & black_knights) return true;
+        
+        // Check black king attacks
+        if (king_attacks[square] & black_kings) return true;
+        
+        // Check black bishop/queen attacks (diagonal)
+        Bitboard bishop_attackers = Magic::get_bishop_attacks(square, occupied);
+        if (bishop_attackers & (black_bishops | black_queens)) return true;
+        
+        // Check black rook/queen attacks (straight)
+        Bitboard rook_attackers = Magic::get_rook_attacks(square, occupied);
+        if (rook_attackers & (black_rooks | black_queens)) return true;
+    }
+    
+    return false;
+}
 // ================ GENERATE ALL THE MOVES ===========================
 std::vector<Move> Board::generate_moves() const
 {
@@ -101,6 +144,72 @@ std::vector<Move> Board::generate_moves() const
             int to = pop_lsb(temp_attacks);
             moves.push_back({from, to});
         }
+
+        if (team_white) {
+            // White kingside castling (e1 -> g1)
+            if (white_castle_kingside) {
+                // Check: king on e1, rook on h1, f1 and g1 are empty
+                if ((white_kings & bit(sq(4, 0))) &&  // King on e1
+                    (white_rooks & bit(sq(7, 0))) &&  // Rook on h1
+                    !(occupied & bit(sq(5, 0))) &&    // f1 empty
+                    !(occupied & bit(sq(6, 0)))) {    // g1 empty
+                    // King must not be in check, not pass through check, not land in check
+                    if (!is_square_attacked(sq(4, 0), false) &&  // e1 not attacked
+                        !is_square_attacked(sq(5, 0), false) &&  // f1 not attacked
+                        !is_square_attacked(sq(6, 0), false)) {  // g1 not attacked
+                        moves.push_back(Move(sq(4, 0), sq(6, 0), CASTLE_KINGSIDE));
+                    }
+                }
+            }
+            
+            // White queenside castling (e1 -> c1)
+            if (white_castle_queenside) {
+                // Check: king on e1, rook on a1, b1, c1, and d1 are empty
+                if ((white_kings & bit(sq(4, 0))) &&  // King on e1
+                    (white_rooks & bit(sq(0, 0))) &&  // Rook on a1
+                    !(occupied & bit(sq(1, 0))) &&    // b1 empty
+                    !(occupied & bit(sq(2, 0))) &&    // c1 empty
+                    !(occupied & bit(sq(3, 0)))) {    // d1 empty
+                    // King must not be in check, not pass through check, not land in check
+                    if (!is_square_attacked(sq(4, 0), false) &&  // e1 not attacked
+                        !is_square_attacked(sq(3, 0), false) &&  // d1 not attacked
+                        !is_square_attacked(sq(2, 0), false)) {  // c1 not attacked
+                        moves.push_back(Move(sq(4, 0), sq(2, 0), CASTLE_QUEENSIDE));
+                    }
+                }
+            }
+        } else {
+            // Black kingside castling (e8 -> g8)
+            if (black_castle_kingside) {
+                if ((black_kings & bit(sq(4, 7))) &&  // King on e8
+                    (black_rooks & bit(sq(7, 7))) &&  // Rook on h8
+                    !(occupied & bit(sq(5, 7))) &&    // f8 empty
+                    !(occupied & bit(sq(6, 7)))) {    // g8 empty
+                    if (!is_square_attacked(sq(4, 7), true) &&  // e8 not attacked
+                        !is_square_attacked(sq(5, 7), true) &&  // f8 not attacked
+                        !is_square_attacked(sq(6, 7), true)) {  // g8 not attacked
+                        moves.push_back(Move(sq(4, 7), sq(6, 7), CASTLE_KINGSIDE));
+                    }
+                }
+            }
+            
+            // Black queenside castling (e8 -> c8)
+            if (black_castle_queenside) {
+                if ((black_kings & bit(sq(4, 7))) &&  // King on e8
+                    (black_rooks & bit(sq(0, 7))) &&  // Rook on a8
+                    !(occupied & bit(sq(1, 7))) &&    // b8 empty
+                    !(occupied & bit(sq(2, 7))) &&    // c8 empty
+                    !(occupied & bit(sq(3, 7)))) {    // d8 empty
+                    if (!is_square_attacked(sq(4, 7), true) &&  // e8 not attacked
+                        !is_square_attacked(sq(3, 7), true) &&  // d8 not attacked
+                        !is_square_attacked(sq(2, 7), true)) {  // c8 not attacked
+                        moves.push_back(Move(sq(4, 7), sq(2, 7), CASTLE_QUEENSIDE));
+                    }
+                }
+            }
+        }
+
+        
     }
 
     // =========== PAWN MOVES ============
@@ -382,6 +491,9 @@ void Board::make_move(const Move &move){
         {
             white_rooks &= ~from_bit;
             white_rooks |= to_bit;
+
+            if (from == sq(0, 0)) white_castle_queenside = false;
+            if (from == sq(7, 0)) white_castle_kingside = false;
         }
         else if (white_queens & from_bit)
         {
@@ -392,6 +504,9 @@ void Board::make_move(const Move &move){
         {
             white_kings &= ~from_bit;
             white_kings |= to_bit;
+
+            white_castle_kingside = false;
+            white_castle_queenside = false;
         }
     }
     else
@@ -415,6 +530,9 @@ void Board::make_move(const Move &move){
         {
             black_rooks &= ~from_bit;
             black_rooks |= to_bit;
+
+            if (from == sq(0, 7)) black_castle_queenside = false;
+            if (from == sq(7, 7)) black_castle_kingside = false;
         }
         else if (black_queens & from_bit)
         {
@@ -425,6 +543,9 @@ void Board::make_move(const Move &move){
         {
             black_kings &= ~from_bit;
             black_kings |= to_bit;
+
+            black_castle_kingside = false;
+            black_castle_queenside = false;
         }
     }
 

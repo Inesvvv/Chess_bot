@@ -21,6 +21,11 @@ class Board {
     public:
         bool team_white = true; // determines which team white or black 
         int ep_square = -1; // equal to the en passant square if there is one else -1 
+        bool white_castle_kingside = true;
+        bool white_castle_queenside = true;
+        bool black_castle_kingside = true;
+        bool black_castle_queenside = true;
+        bool is_square_attacked(int square, bool by_white) const; // checks if a square is attacked by the given color
         Board();
 
         std::vector<Move> generate_moves() const; // returns a vector of all possible moves of our team 
