@@ -7,7 +7,7 @@ g4g3
 f1c4
 g3g2
 d1f3
-g2g1k
+g2g1
 a2a3
 g1h3
 a3a4

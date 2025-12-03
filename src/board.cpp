@@ -5,6 +5,7 @@
 
 #include "board.h"
 #include <cstdlib>
+#include <iostream>
 
 // Memo:
 // rank = rows (1 to 8)
@@ -471,6 +472,12 @@ std::vector<Move> Board::generate_moves() const
 Move Board::get_random_move() const
 {
     std::vector<Move> moves = generate_moves();
+    std::cout << "Generated " << moves.size() << " moves.\n";
+    std::cout << "Moves:\n";
+    for (const auto &mv : moves)
+    {
+        std::cout << "From " << mv.from << " to " << mv.to << "\n";
+    }
 
     // for now this is a temporary output if there are no legal moves; avoids division by zero
     if (moves.empty())
