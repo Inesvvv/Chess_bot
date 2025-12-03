@@ -14,6 +14,8 @@ enum MoveFlag : uint8_t {
     CAPTURE          = 1,
     DOUBLE_PUSH      = 2,
     EN_PASSANT       = 3,
+    CASTLE_KINGSIDE  = 12,    
+    CASTLE_QUEENSIDE = 13,
     // Uncomment later when we add promotion implementation 
     /* PROMO_QUEEN      = 4,
     PROMO_ROOK       = 5,
