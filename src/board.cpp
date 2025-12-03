@@ -504,6 +504,8 @@ std::vector<Move> Board::generate_moves() const
         }
     };
 
+
+
     return moves;
 }
 
@@ -670,6 +672,61 @@ void Board::make_move(const Move &move)
         all_black = black_pawns | black_knights | black_bishops | black_rooks | black_queens | black_kings;
         occupied = all_white | all_black;
 
+        team_white = !team_white;
+        return;
+    }
+
+    ep_square = -1;
+
+    // ===== CASTLING SPECIAL CASES =====
+    if (move.flag == CASTLE_KINGSIDE || move.flag == CASTLE_QUEENSIDE) {
+        if (team_white) {
+            white_kings &= ~from_bit;
+            white_kings |= to_bit;
+
+            if (move.flag == CASTLE_KINGSIDE) {
+                Bitboard rook_from = bit(sq(7, 0));
+                Bitboard rook_to   = bit(sq(5, 0));
+                white_rooks &= ~rook_from;
+                white_rooks |= rook_to;
+            } else { // CASTLE_QUEENSIDE
+                Bitboard rook_from = bit(sq(0, 0));
+                Bitboard rook_to   = bit(sq(3, 0));
+                white_rooks &= ~rook_from;
+                white_rooks |= rook_to;
+            }
+
+            white_castle_kingside = false;
+            white_castle_queenside = false;
+        } else {
+            // Black castling
+            black_kings &= ~from_bit;
+            black_kings |= to_bit;
+
+            if (move.flag == CASTLE_KINGSIDE) {
+                Bitboard rook_from = bit(sq(7, 7));
+                Bitboard rook_to   = bit(sq(5, 7));
+                black_rooks &= ~rook_from;
+                black_rooks |= rook_to;
+            } else { // CASTLE_QUEENSIDE
+                Bitboard rook_from = bit(sq(0, 7));
+                Bitboard rook_to   = bit(sq(3, 7));
+                black_rooks &= ~rook_from;
+                black_rooks |= rook_to;
+            }
+
+            black_castle_kingside = false;
+            black_castle_queenside = false;
+        }
+
+        // Update combined bitboards
+        all_white = white_pawns | white_knights | white_bishops |
+                    white_rooks | white_queens | white_kings;
+        all_black = black_pawns | black_knights | black_bishops |
+                    black_rooks | black_queens | black_kings;
+        occupied = all_white | all_black;
+
+        // Switch side to move
         team_white = !team_white;
         return;
     }
