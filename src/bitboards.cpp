@@ -113,9 +113,6 @@ void init_attack_tables() {
         king_attacks[sq_index] = attacks;
 
         // =========== PAWNS =========== 
-        Bitboard attacks = 0ULL;
-        int r = sq_index / 8;
-        int f = sq_index % 8;
         // Separate white and black pawn moves because black go down and white go up 
         // === WHITE Normal Capture (diagonal)=====
         attacks = 0ULL;
