@@ -25,7 +25,7 @@ class Board {
         bool white_castle_queenside = true;
         bool black_castle_kingside = true;
         bool black_castle_queenside = true;
-        bool is_square_attacked(int square, bool by_white) const; // checks if a square is attacked by the given color
+        bool is_square_attacked(int square, bool by_white) const; // checks if a square is attacked by opponent
         Board();
 
         std::vector<Move> generate_moves() const; // returns a vector of all possible moves of our team : ONLY PSEUDO-LEGAL MOVES
@@ -33,8 +33,6 @@ class Board {
         Move get_random_move() const; // for now, return a random move from all moves
 
         void make_move(const Move& move); // applies a given move to the board and updates who the current player is
-
-        bool is_square_attacked(int square, bool by_white) const; // checks if a square is attacked by opponent
 
         int find_king(bool white) const; // find the king's square
 
