@@ -24,32 +24,32 @@ std::string index_to_square(int sq)
 }
 
 // go from the string representing the move to an actual move
-Move string_to_move(const std::string &line)
-{
-    // check if the line is valid (it had at least 4 characters)
-    if (line.size() < 4)
-    {
-        return Move{-1, -1};
-    }
+// Move string_to_move(const std::string &line)
+// {
+//     // check if the line is valid (it had at least 4 characters)
+//     if (line.size() < 4)
+//     {
+//         return Move{-1, -1};
+//     }
 
-    // convert from string to index
-    auto parse_sq = [](char fileChar, char rankChar) -> int
-    {
-        int file = fileChar - 'a';
-        int rank = rankChar - '1';
-        if (file < 0 || file > 7 || rank < 0 || rank > 7)
-        {
-            return -1;
-        }
-        return rank * 8 + file;
-    };
+//     // convert from string to index
+//     auto parse_sq = [](char fileChar, char rankChar) -> int
+//     {
+//         int file = fileChar - 'a';
+//         int rank = rankChar - '1';
+//         if (file < 0 || file > 7 || rank < 0 || rank > 7)
+//         {
+//             return -1;
+//         }
+//         return rank * 8 + file;
+//     };
 
-    int from = parse_sq(line[0], line[1]);
-    int to = parse_sq(line[2], line[3]);
+//     int from = parse_sq(line[0], line[1]);
+//     int to = parse_sq(line[2], line[3]);
 
-    // return a move
-    return Move{from, to};
-}
+//     // return a move
+//     return Move{from, to};
+// }
 
 // helper function to go from a move to a string representing the move
 std::string move_to_string(const Move &m)
@@ -58,8 +58,35 @@ std::string move_to_string(const Move &m)
     {
         return "";
     }
-    return index_to_square(m.from) + index_to_square(m.to);
+
+    std::string s = index_to_square(m.from) + index_to_square(m.to);
+
+    // Append promotion piece for promotions
+    switch (m.flag)
+    {
+    case PROMO_QUEEN:
+    case PROMO_CAPTURE_Q:
+        s += 'q';
+        break;
+    case PROMO_ROOK:
+    case PROMO_CAPTURE_R:
+        s += 'r';
+        break;
+    case PROMO_BISHOP:
+    case PROMO_CAPTURE_B:
+        s += 'b';
+        break;
+    case PROMO_KNIGHT:
+    case PROMO_CAPTURE_K:
+        s += 'n';
+        break;
+    default:
+        break;
+    }
+
+    return s;
 }
+
 
 int main(int argc, char *argv[])
 {
@@ -110,7 +137,7 @@ int main(int argc, char *argv[])
                 continue;
             }
             // parse each line into a move, store it, and make the actual move onto the board
-            Move mv = string_to_move(line);
+            Move mv = board.parse_uci_move(line);
             if (mv.from >= 0 && mv.to >= 0)
             {
                 board.make_move(mv);

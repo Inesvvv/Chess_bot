@@ -38,6 +38,8 @@ class Board {
 
         int count_checkers(bool white_to_move) const; // detect check and double check
 
+        Move parse_uci_move(const std::string &uci) const;
+
         //for testing purposes
         void print_board() const;
     private:
