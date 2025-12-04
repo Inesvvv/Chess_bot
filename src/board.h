@@ -33,6 +33,9 @@ class Board {
         Move get_random_move() const; // for now, return a random move from all moves
 
         void make_move(const Move& move); // applies a given move to the board and updates who the current player is
+        void unmake_move(const Move& move); // reverts a given move on the board and updates who the current player is
+
+        bool in_check() const; //checks if the current player is in check
 
         int find_king(bool white) const; // find the king's square
 
@@ -44,6 +47,18 @@ class Board {
         void print_board() const;
     private:
         int pop_lsb(Bitboards::Bitboard &b) const; // utilty fucntion tat iterats through all positions to find where the pieces are 
+        //stores everything that changes between moves
+        struct UndoState {
+            Bitboards::BoardState bb_state;
+            bool team_white;
+            int ep_square;
+            bool white_castle_kingside;
+            bool white_castle_queenside;
+            bool black_castle_kingside;
+            bool black_castle_queenside;
+        };
+
+        std::vector<UndoState> undo_stack;
 
     };
 

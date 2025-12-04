@@ -222,6 +222,21 @@ int Board::count_checkers(bool white_to_move) const
     return attackers;
 }
 
+// checks if the current player is in check
+bool Board::in_check() const
+{
+    // King of the side to move
+    int king_square = find_king(team_white);
+    if (king_square == -1)
+    {
+        // should never happen in a valid game, but just to make sure
+        return false;
+    }
+
+    // is that square attacked by the opposite color?
+    return is_square_attacked(king_square, !team_white);
+}
+
 std::vector<Move> Board::generate_moves() const
 {
     std::vector<Move> moves; // create our vector that will contain all the possible moves
@@ -296,13 +311,13 @@ std::vector<Move> Board::generate_moves() const
             // White kingside castling
             if (white_castle_kingside)
             {
-                if ((white_kings & bit(sq(4, 0))) && 
+                if ((white_kings & bit(sq(4, 0))) &&
                     (white_rooks & bit(sq(7, 0))) &&
-                    !(occupied & bit(sq(5, 0))) && 
+                    !(occupied & bit(sq(5, 0))) &&
                     !(occupied & bit(sq(6, 0))))
                 {
-                    if (!is_square_attacked(sq(4, 0), false) && 
-                        !is_square_attacked(sq(5, 0), false) && 
+                    if (!is_square_attacked(sq(4, 0), false) &&
+                        !is_square_attacked(sq(5, 0), false) &&
                         !is_square_attacked(sq(6, 0), false))
                     {
                         moves.push_back(Move(sq(4, 0), sq(6, 0), CASTLE_KINGSIDE));
@@ -401,7 +416,9 @@ std::vector<Move> Board::generate_moves() const
                     moves.push_back(Move(from, to, PROMO_ROOK));
                     moves.push_back(Move(from, to, PROMO_BISHOP));
                     moves.push_back(Move(from, to, PROMO_KNIGHT));
-                }else{
+                }
+                else
+                {
                     moves.push_back({from, to});
                     // double push (only from rank 2 so index rank = 1)
                     if (from / 8 == 1)
@@ -412,7 +429,8 @@ std::vector<Move> Board::generate_moves() const
                     }
                 }
             }
-        }else
+        }
+        else
         {
             int to = from - 8;
             if (to >= 0 && !(occupied & bit(to)))
@@ -425,7 +443,9 @@ std::vector<Move> Board::generate_moves() const
                     moves.push_back(Move(from, to, PROMO_ROOK));
                     moves.push_back(Move(from, to, PROMO_BISHOP));
                     moves.push_back(Move(from, to, PROMO_KNIGHT));
-                }else{
+                }
+                else
+                {
                     moves.push_back({from, to});
                     // double push (from rank 7)
                     if (from / 8 == 6)
@@ -454,11 +474,11 @@ std::vector<Move> Board::generate_moves() const
             int to = pop_lsb(temp_caps);
             int to_rank = to / 8;
             bool promotion_rank = (team_white && to_rank == 7) ||
-                                (!team_white && to_rank == 0);
+                                  (!team_white && to_rank == 0);
 
             if (promotion_rank)
             {
-                //promotion-captures
+                // promotion-captures
                 moves.push_back(Move(from, to, PROMO_CAPTURE_Q));
                 moves.push_back(Move(from, to, PROMO_CAPTURE_R));
                 moves.push_back(Move(from, to, PROMO_CAPTURE_B));
@@ -536,8 +556,6 @@ std::vector<Move> Board::generate_moves() const
         }
     };
 
-
-
     return moves;
 }
 
@@ -592,6 +610,17 @@ Move Board::get_random_move() const
 // applies a given move to the board and updates who the current player is
 void Board::make_move(const Move &move)
 {
+    // save current state to undo stack
+    UndoState u;
+    u.bb_state = Bitboards::snapshot_state();
+    u.team_white = team_white;
+    u.ep_square = ep_square;
+    u.white_castle_kingside = white_castle_kingside;
+    u.white_castle_queenside = white_castle_queenside;
+    u.black_castle_kingside = black_castle_kingside;
+    u.black_castle_queenside = black_castle_queenside;
+    undo_stack.push_back(u);
+
     int from = move.from;
     int to = move.to;
 
@@ -718,38 +747,48 @@ void Board::make_move(const Move &move)
     ep_square = -1;
 
     // ===== CASTLING SPECIAL CASES =====
-    if (move.flag == CASTLE_KINGSIDE || move.flag == CASTLE_QUEENSIDE) {
-        if (team_white) {
+    if (move.flag == CASTLE_KINGSIDE || move.flag == CASTLE_QUEENSIDE)
+    {
+        if (team_white)
+        {
             white_kings &= ~from_bit;
             white_kings |= to_bit;
 
-            if (move.flag == CASTLE_KINGSIDE) {
+            if (move.flag == CASTLE_KINGSIDE)
+            {
                 Bitboard rook_from = bit(sq(7, 0));
-                Bitboard rook_to   = bit(sq(5, 0));
+                Bitboard rook_to = bit(sq(5, 0));
                 white_rooks &= ~rook_from;
                 white_rooks |= rook_to;
-            } else { // CASTLE_QUEENSIDE
+            }
+            else
+            { // CASTLE_QUEENSIDE
                 Bitboard rook_from = bit(sq(0, 0));
-                Bitboard rook_to   = bit(sq(3, 0));
+                Bitboard rook_to = bit(sq(3, 0));
                 white_rooks &= ~rook_from;
                 white_rooks |= rook_to;
             }
 
             white_castle_kingside = false;
             white_castle_queenside = false;
-        } else {
+        }
+        else
+        {
             // Black castling
             black_kings &= ~from_bit;
             black_kings |= to_bit;
 
-            if (move.flag == CASTLE_KINGSIDE) {
+            if (move.flag == CASTLE_KINGSIDE)
+            {
                 Bitboard rook_from = bit(sq(7, 7));
-                Bitboard rook_to   = bit(sq(5, 7));
+                Bitboard rook_to = bit(sq(5, 7));
                 black_rooks &= ~rook_from;
                 black_rooks |= rook_to;
-            } else { // CASTLE_QUEENSIDE
+            }
+            else
+            { // CASTLE_QUEENSIDE
                 Bitboard rook_from = bit(sq(0, 7));
-                Bitboard rook_to   = bit(sq(3, 7));
+                Bitboard rook_to = bit(sq(3, 7));
                 black_rooks &= ~rook_from;
                 black_rooks |= rook_to;
             }
@@ -883,7 +922,29 @@ void Board::make_move(const Move &move)
     team_white = !team_white;
 }
 
-//uses the current board state to interpret the UCI text and set the correct flag (enpassant, capture, ...).
+void Board::unmake_move(const Move &move)
+{
+    if (undo_stack.empty())
+    {
+        return;
+    }
+
+    UndoState u = undo_stack.back();
+    undo_stack.pop_back();
+
+    // restore global bitboards
+    Bitboards::restore_state(u.bb_state);
+
+    // restore Board flags
+    team_white = u.team_white;
+    ep_square = u.ep_square;
+    white_castle_kingside = u.white_castle_kingside;
+    white_castle_queenside = u.white_castle_queenside;
+    black_castle_kingside = u.black_castle_kingside;
+    black_castle_queenside = u.black_castle_queenside;
+}
+
+// uses the current board state to interpret the UCI text and set the correct flag (enpassant, capture, ...).
 Move Board::parse_uci_move(const std::string &uci) const
 {
     // Minimal UCI: "e2e4" or "e7e8q"
@@ -893,13 +954,15 @@ Move Board::parse_uci_move(const std::string &uci) const
         return Move(-1, -1, QUIET);
     }
 
-    auto file_index = [](char f) { return f - 'a'; };
-    auto rank_index = [](char r) { return r - '1'; };
+    auto file_index = [](char f)
+    { return f - 'a'; };
+    auto rank_index = [](char r)
+    { return r - '1'; };
 
     int from_file = file_index(uci[0]);
     int from_rank = rank_index(uci[1]);
-    int to_file   = file_index(uci[2]);
-    int to_rank   = rank_index(uci[3]);
+    int to_file = file_index(uci[2]);
+    int to_rank = rank_index(uci[3]);
 
     if (from_file < 0 || from_file > 7 || to_file < 0 || to_file > 7 ||
         from_rank < 0 || from_rank > 7 || to_rank < 0 || to_rank > 7)
@@ -908,16 +971,16 @@ Move Board::parse_uci_move(const std::string &uci) const
     }
 
     int from = from_rank * 8 + from_file;
-    int to   = to_rank * 8 + to_file;
+    int to = to_rank * 8 + to_file;
 
     Bitboard from_bit = bit(from);
-    Bitboard to_bit   = bit(to);
+    Bitboard to_bit = bit(to);
 
     bool white = team_white;
-    Bitboard my_pawns   = white ? white_pawns   : black_pawns;
-    Bitboard my_kings   = white ? white_kings   : black_kings;
-    Bitboard my_pieces  = white ? all_white     : all_black;
-    Bitboard opp_pieces = white ? all_black     : all_white;
+    Bitboard my_pawns = white ? white_pawns : black_pawns;
+    Bitboard my_kings = white ? white_kings : black_kings;
+    Bitboard my_pieces = white ? all_white : all_black;
+    Bitboard opp_pieces = white ? all_black : all_white;
 
     bool is_pawn = (my_pawns & from_bit) != 0;
     bool is_king = (my_kings & from_bit) != 0;
@@ -929,17 +992,22 @@ Move Board::parse_uci_move(const std::string &uci) const
     bool has_promo_char = (uci.size() >= 5);
     char promo_char = has_promo_char ? uci[4] : '\0';
 
-    auto classify_promo = [&](bool is_capture) {
+    auto classify_promo = [&](bool is_capture)
+    {
         switch (promo_char)
         {
         case 'q':
-        case 'Q': return is_capture ? PROMO_CAPTURE_Q : PROMO_QUEEN;
+        case 'Q':
+            return is_capture ? PROMO_CAPTURE_Q : PROMO_QUEEN;
         case 'r':
-        case 'R': return is_capture ? PROMO_CAPTURE_R : PROMO_ROOK;
+        case 'R':
+            return is_capture ? PROMO_CAPTURE_R : PROMO_ROOK;
         case 'b':
-        case 'B': return is_capture ? PROMO_CAPTURE_B : PROMO_BISHOP;
+        case 'B':
+            return is_capture ? PROMO_CAPTURE_B : PROMO_BISHOP;
         case 'n':
-        case 'N': return is_capture ? PROMO_CAPTURE_K : PROMO_KNIGHT;
+        case 'N':
+            return is_capture ? PROMO_CAPTURE_K : PROMO_KNIGHT;
         default:
             // default to queen if no char / invalid char
             return is_capture ? PROMO_CAPTURE_Q : PROMO_QUEEN;
@@ -988,7 +1056,6 @@ Move Board::parse_uci_move(const std::string &uci) const
 
     return Move(from, to, flag);
 }
-
 
 // for testing purposes
 void Board::print_board() const

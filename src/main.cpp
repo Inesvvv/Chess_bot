@@ -11,6 +11,7 @@
 
 #include "board.h"
 #include "perft.cpp"
+#include "search.h"
 
 // HELPER FUNCTIONS TO PASS FROM FILE TO MOVE
 
@@ -157,9 +158,26 @@ int main(int argc, char *argv[])
 
     // Choose the next move
     // FOR NOW WE ARE IMPLEMENTING THE NEXT MOVE TO BE A RANDOM MOVE
-    Move next = board.get_random_move();
+    
+    
+    // Move next = board.get_random_move();
+    // std::string next_move_str = move_to_string(next);
+    // std::cout << "Next move: " << next_move_str << '\n';
+
+    // if (next_move_str.empty())
+    // {
+    //     std::cerr << "Did not find any legal moves.\n";
+    //     return 1;
+    // }
+
+    //make move using search and evaluation
+    int searchDepth = 4;
+    SearchResult result = find_best_move(board, searchDepth);
+    Move next = result.bestMove;
     std::string next_move_str = move_to_string(next);
-    std::cout << "Next move: " << next_move_str << '\n';
+
+    std::cout << "Next move: " << next_move_str
+            << " (score: " << result.score << ")\n";
 
     if (next_move_str.empty())
     {
