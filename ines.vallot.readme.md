@@ -10,3 +10,5 @@ Week 2
 - created isolated_pawn mask and the passed_pawn masks which will be used later for the evaluation of moves because an isolated pawn for example is very weak 
 - modified the implementation of pawn in board.cpp to calculate the pawn moves 
 - created move.h to modify the move structure by adding a type field 
+- modified make_move to make en passant, double push moves 
+- created perft file to test 100% legal moves

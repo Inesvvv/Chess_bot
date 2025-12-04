@@ -551,11 +551,18 @@ std::vector<Move> Board::generate_legal_moves() const
     {
         Move m = psuedo_legal[i];
 
+        // Snapshot global bitboards before making the move on the copy.
+        // make_move mutates global bitboards in this design, so we must restore
+        // them after the legality check to avoid corrupting subsequent iterations.
+        Bitboards::BoardState snap = Bitboards::snapshot_state();
         Board copy = *this;
         copy.make_move(m);
 
         int king_square = copy.find_king(!copy.team_white);
         bool in_check = copy.is_square_attacked(king_square, copy.team_white);
+
+        // restore global bitboards so next pseudo-legal move starts from original position
+        Bitboards::restore_state(snap);
 
         if (!in_check)
         {

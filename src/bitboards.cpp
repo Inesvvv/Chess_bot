@@ -220,3 +220,53 @@ namespace Bitboards
     }
 
 } // namespace Bitboards
+
+// Restore implementation
+namespace Bitboards {
+    BoardState snapshot_state()
+    {
+        BoardState s;
+        s.white_pawns = white_pawns;
+        s.white_knights = white_knights;
+        s.white_bishops = white_bishops;
+        s.white_rooks = white_rooks;
+        s.white_queens = white_queens;
+        s.white_kings = white_kings;
+
+        s.black_pawns = black_pawns;
+        s.black_knights = black_knights;
+        s.black_bishops = black_bishops;
+        s.black_rooks = black_rooks;
+        s.black_queens = black_queens;
+        s.black_kings = black_kings;
+
+        s.all_white = all_white;
+        s.all_black = all_black;
+        s.occupied = occupied;
+        s.empty = empty;
+
+        return s;
+    }
+
+    void restore_state(const BoardState &s)
+    {
+        white_pawns = s.white_pawns;
+        white_knights = s.white_knights;
+        white_bishops = s.white_bishops;
+        white_rooks = s.white_rooks;
+        white_queens = s.white_queens;
+        white_kings = s.white_kings;
+
+        black_pawns = s.black_pawns;
+        black_knights = s.black_knights;
+        black_bishops = s.black_bishops;
+        black_rooks = s.black_rooks;
+        black_queens = s.black_queens;
+        black_kings = s.black_kings;
+
+        all_white = s.all_white;
+        all_black = s.all_black;
+        occupied = s.occupied;
+        empty = s.empty;
+    }
+} // namespace Bitboards

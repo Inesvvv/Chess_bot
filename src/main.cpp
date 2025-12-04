@@ -10,6 +10,7 @@
 #include <ctime>
 
 #include "board.h"
+#include "perft.cpp"
 
 // HELPER FUNCTIONS TO PASS FROM FILE TO MOVE
 
@@ -177,5 +178,32 @@ int main(int argc, char *argv[])
     // print the next move into the file
     out << next_move_str << '\n';
 
-    return 0;
+    // ======== TESTING PERFT ===========
+    std::cout << "════════════════════════════════════════════\n";
+    std::cout << "        Chesster — PERFT Test Suite\n";
+    std::cout << "════════════════════════════════════════════\n\n";
+
+    RUN_TEST(perft_depth1);
+    RUN_TEST(perft_depth2);
+    RUN_TEST(perft_depth3);
+    RUN_TEST(perft_depth4);
+
+    // Debug: print per-root move breakdown for depth 3 to investigate failures
+    std::cout << "\nPerft split (depth 3):\n";
+    perft_split(3);
+    std::cout << "\nPerft split (depth 2):\n";
+    perft_split(2);
+    std::cout << "\nPerft split (depth 4):\n";
+    perft_split(4);
+
+    std::cout << "\n════════════════════════════════════════════\n";
+    std::cout << " Test Summary\n";
+    std::cout << "════════════════════════════════════════════\n";
+    std::cout << " Passed: " << tests_passed << "\n";
+    std::cout << " Failed: " << tests_failed << "\n";
+    std::cout << "════════════════════════════════════════════\n";
+
+    return tests_failed == 0 ? 0 : 1;
+
+    //return 0;
 }
