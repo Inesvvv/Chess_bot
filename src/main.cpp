@@ -10,6 +10,7 @@
 #include <ctime>
 
 #include "board.h"
+#include "perft.cpp"
 
 // HELPER FUNCTIONS TO PASS FROM FILE TO MOVE
 
@@ -24,32 +25,32 @@ std::string index_to_square(int sq)
 }
 
 // go from the string representing the move to an actual move
-Move string_to_move(const std::string &line)
-{
-    // check if the line is valid (it had at least 4 characters)
-    if (line.size() < 4)
-    {
-        return Move{-1, -1};
-    }
+// Move string_to_move(const std::string &line)
+// {
+//     // check if the line is valid (it had at least 4 characters)
+//     if (line.size() < 4)
+//     {
+//         return Move{-1, -1};
+//     }
 
-    // convert from string to index
-    auto parse_sq = [](char fileChar, char rankChar) -> int
-    {
-        int file = fileChar - 'a';
-        int rank = rankChar - '1';
-        if (file < 0 || file > 7 || rank < 0 || rank > 7)
-        {
-            return -1;
-        }
-        return rank * 8 + file;
-    };
+//     // convert from string to index
+//     auto parse_sq = [](char fileChar, char rankChar) -> int
+//     {
+//         int file = fileChar - 'a';
+//         int rank = rankChar - '1';
+//         if (file < 0 || file > 7 || rank < 0 || rank > 7)
+//         {
+//             return -1;
+//         }
+//         return rank * 8 + file;
+//     };
 
-    int from = parse_sq(line[0], line[1]);
-    int to = parse_sq(line[2], line[3]);
+//     int from = parse_sq(line[0], line[1]);
+//     int to = parse_sq(line[2], line[3]);
 
-    // return a move
-    return Move{from, to};
-}
+//     // return a move
+//     return Move{from, to};
+// }
 
 // helper function to go from a move to a string representing the move
 std::string move_to_string(const Move &m)
@@ -58,8 +59,35 @@ std::string move_to_string(const Move &m)
     {
         return "";
     }
-    return index_to_square(m.from) + index_to_square(m.to);
+
+    std::string s = index_to_square(m.from) + index_to_square(m.to);
+
+    // Append promotion piece for promotions
+    switch (m.flag)
+    {
+    case PROMO_QUEEN:
+    case PROMO_CAPTURE_Q:
+        s += 'q';
+        break;
+    case PROMO_ROOK:
+    case PROMO_CAPTURE_R:
+        s += 'r';
+        break;
+    case PROMO_BISHOP:
+    case PROMO_CAPTURE_B:
+        s += 'b';
+        break;
+    case PROMO_KNIGHT:
+    case PROMO_CAPTURE_K:
+        s += 'n';
+        break;
+    default:
+        break;
+    }
+
+    return s;
 }
+
 
 int main(int argc, char *argv[])
 {
@@ -110,7 +138,7 @@ int main(int argc, char *argv[])
                 continue;
             }
             // parse each line into a move, store it, and make the actual move onto the board
-            Move mv = string_to_move(line);
+            Move mv = board.parse_uci_move(line);
             if (mv.from >= 0 && mv.to >= 0)
             {
                 board.make_move(mv);
@@ -150,5 +178,32 @@ int main(int argc, char *argv[])
     // print the next move into the file
     out << next_move_str << '\n';
 
-    return 0;
+    // ======== TESTING PERFT ===========
+    std::cout << "════════════════════════════════════════════\n";
+    std::cout << "        Chesster — PERFT Test Suite\n";
+    std::cout << "════════════════════════════════════════════\n\n";
+
+    RUN_TEST(perft_depth1);
+    RUN_TEST(perft_depth2);
+    RUN_TEST(perft_depth3);
+    RUN_TEST(perft_depth4);
+
+    // Debug: print per-root move breakdown for depth 3 to investigate failures
+    std::cout << "\nPerft split (depth 3):\n";
+    perft_split(3);
+    std::cout << "\nPerft split (depth 2):\n";
+    perft_split(2);
+    std::cout << "\nPerft split (depth 4):\n";
+    perft_split(4);
+
+    std::cout << "\n════════════════════════════════════════════\n";
+    std::cout << " Test Summary\n";
+    std::cout << "════════════════════════════════════════════\n";
+    std::cout << " Passed: " << tests_passed << "\n";
+    std::cout << " Failed: " << tests_failed << "\n";
+    std::cout << "════════════════════════════════════════════\n";
+
+    return tests_failed == 0 ? 0 : 1;
+
+    //return 0;
 }

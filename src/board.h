@@ -42,6 +42,8 @@ class Board {
         Bitboards::Bitboard compute_pinned(bool for_white) const; // returns mask of pinned pieces for the given color
         void compute_pin_masks(bool for_white, std::array<Bitboards::Bitboard, 64> &out_masks) const; // per-square allowed move masks for pinned pieces
 
+        Move parse_uci_move(const std::string &uci) const;
+
         //for testing purposes
         void print_board() const;
     private:

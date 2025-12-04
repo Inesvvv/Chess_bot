@@ -500,26 +500,24 @@ std::vector<Move> Board::generate_moves() const
 
         if (team_white)
         {
-            // White kingside castling (e1 -> g1)
+            // White kingside castling
             if (white_castle_kingside)
             {
-                // Check: king on e1, rook on h1, f1 and g1 are empty
-                if ((white_kings & bit(sq(4, 0))) && // King on e1
-                    (white_rooks & bit(sq(7, 0))) && // Rook on h1
-                    !(occupied & bit(sq(5, 0))) &&   // f1 empty
+                if ((white_kings & bit(sq(4, 0))) && 
+                    (white_rooks & bit(sq(7, 0))) &&
+                    !(occupied & bit(sq(5, 0))) && 
                     !(occupied & bit(sq(6, 0))))
-                { // g1 empty
-                    // King must not be in check, not pass through check, not land in check
-                    if (!is_square_attacked(sq(4, 0), false) && // e1 not attacked
-                        !is_square_attacked(sq(5, 0), false) && // f1 not attacked
+                {
+                    if (!is_square_attacked(sq(4, 0), false) && 
+                        !is_square_attacked(sq(5, 0), false) && 
                         !is_square_attacked(sq(6, 0), false))
-                    { // g1 not attacked
+                    {
                         moves.push_back(Move(sq(4, 0), sq(6, 0), CASTLE_KINGSIDE));
                     }
                 }
             }
 
-            // White queenside castling (e1 -> c1)
+            // White queenside castling
             if (white_castle_queenside)
             {
                 // Check: king on e1, rook on a1, b1, c1, and d1 are empty
@@ -603,33 +601,47 @@ std::vector<Move> Board::generate_moves() const
             int to = from + 8;
             if (to < 64 && !(occupied & bit(to)))
             {
-                // if pinned, ensure destination is on pin line
-                if (!pin || (bit(to) & pin))
-                    moves.push_back({from, to});
-                // double push (only from rank 2 so index rank = 1)
-                if (from / 8 == 1)
+                int to_rank = to / 8;
+                if (to_rank == 7)
                 {
-                    int to2 = from + 16;
-                    if (!(occupied & bit(to2)))
-                        if (!pin || (bit(to2) & pin))
+                    // Promotion quiet moves
+                    moves.push_back(Move(from, to, PROMO_QUEEN));
+                    moves.push_back(Move(from, to, PROMO_ROOK));
+                    moves.push_back(Move(from, to, PROMO_BISHOP));
+                    moves.push_back(Move(from, to, PROMO_KNIGHT));
+                }else{
+                    moves.push_back({from, to});
+                    // double push (only from rank 2 so index rank = 1)
+                    if (from / 8 == 1)
+                    {
+                        int to2 = from + 16;
+                        if (!(occupied & bit(to2)))
                             moves.push_back(Move(from, to2, DOUBLE_PUSH));
+                    }
                 }
             }
-        }
-        else
+        }else
         {
             int to = from - 8;
             if (to >= 0 && !(occupied & bit(to)))
             {
-                if (!pin || (bit(to) & pin))
-                    moves.push_back({from, to});
-                // double push (from rank 7)
-                if (from / 8 == 6)
+                int to_rank = to / 8;
+                if (to_rank == 0)
                 {
-                    int to2 = from - 16;
-                    if (!(occupied & bit(to2)))
-                        if (!pin || (bit(to2) & pin))
+                    // Promotion quiet moves
+                    moves.push_back(Move(from, to, PROMO_QUEEN));
+                    moves.push_back(Move(from, to, PROMO_ROOK));
+                    moves.push_back(Move(from, to, PROMO_BISHOP));
+                    moves.push_back(Move(from, to, PROMO_KNIGHT));
+                }else{
+                    moves.push_back({from, to});
+                    // double push (from rank 7)
+                    if (from / 8 == 6)
+                    {
+                        int to2 = from - 16;
+                        if (!(occupied & bit(to2)))
                             moves.push_back(Move(from, to2, DOUBLE_PUSH));
+                    }
                 }
             }
         }
@@ -651,7 +663,22 @@ std::vector<Move> Board::generate_moves() const
         while (temp_caps)
         {
             int to = pop_lsb(temp_caps);
-            moves.push_back(Move(from, to, CAPTURE));
+            int to_rank = to / 8;
+            bool promotion_rank = (team_white && to_rank == 7) ||
+                                (!team_white && to_rank == 0);
+
+            if (promotion_rank)
+            {
+                //promotion-captures
+                moves.push_back(Move(from, to, PROMO_CAPTURE_Q));
+                moves.push_back(Move(from, to, PROMO_CAPTURE_R));
+                moves.push_back(Move(from, to, PROMO_CAPTURE_B));
+                moves.push_back(Move(from, to, PROMO_CAPTURE_K));
+            }
+            else
+            {
+                moves.push_back(Move(from, to, CAPTURE));
+            }
         }
         // En passant capture
         if (ep_square != -1)
@@ -748,11 +775,18 @@ std::vector<Move> Board::generate_legal_moves() const
     {
         Move m = psuedo_legal[i];
 
+        // Snapshot global bitboards before making the move on the copy.
+        // make_move mutates global bitboards in this design, so we must restore
+        // them after the legality check to avoid corrupting subsequent iterations.
+        Bitboards::BoardState snap = Bitboards::snapshot_state();
         Board copy = *this;
         copy.make_move(m);
 
         int king_square = copy.find_king(!copy.team_white);
         bool in_check = copy.is_square_attacked(king_square, copy.team_white);
+
+        // restore global bitboards so next pseudo-legal move starts from original position
+        Bitboards::restore_state(snap);
 
         if (!in_check)
         {
@@ -771,7 +805,7 @@ Move Board::get_random_move() const
     // for now this is a temporary output if there are no legal moves; avoids division by zero
     if (moves.empty())
     {
-        return {0, 0};
+        return Move(-1, -1, QUIET);
     }
 
     // get a random index from moves and return it
@@ -1072,6 +1106,113 @@ void Board::make_move(const Move &move)
     // switch teams
     team_white = !team_white;
 }
+
+//uses the current board state to interpret the UCI text and set the correct flag (enpassant, capture, ...).
+Move Board::parse_uci_move(const std::string &uci) const
+{
+    // Minimal UCI: "e2e4" or "e7e8q"
+    if (uci.size() < 4)
+    {
+        // invalid, return sentinel
+        return Move(-1, -1, QUIET);
+    }
+
+    auto file_index = [](char f) { return f - 'a'; };
+    auto rank_index = [](char r) { return r - '1'; };
+
+    int from_file = file_index(uci[0]);
+    int from_rank = rank_index(uci[1]);
+    int to_file   = file_index(uci[2]);
+    int to_rank   = rank_index(uci[3]);
+
+    if (from_file < 0 || from_file > 7 || to_file < 0 || to_file > 7 ||
+        from_rank < 0 || from_rank > 7 || to_rank < 0 || to_rank > 7)
+    {
+        return Move(-1, -1, QUIET);
+    }
+
+    int from = from_rank * 8 + from_file;
+    int to   = to_rank * 8 + to_file;
+
+    Bitboard from_bit = bit(from);
+    Bitboard to_bit   = bit(to);
+
+    bool white = team_white;
+    Bitboard my_pawns   = white ? white_pawns   : black_pawns;
+    Bitboard my_kings   = white ? white_kings   : black_kings;
+    Bitboard my_pieces  = white ? all_white     : all_black;
+    Bitboard opp_pieces = white ? all_black     : all_white;
+
+    bool is_pawn = (my_pawns & from_bit) != 0;
+    bool is_king = (my_kings & from_bit) != 0;
+
+    MoveFlag flag = QUIET;
+
+    // ---- Promotions ----
+    bool promotion_rank = (white && to_rank == 7) || (!white && to_rank == 0);
+    bool has_promo_char = (uci.size() >= 5);
+    char promo_char = has_promo_char ? uci[4] : '\0';
+
+    auto classify_promo = [&](bool is_capture) {
+        switch (promo_char)
+        {
+        case 'q':
+        case 'Q': return is_capture ? PROMO_CAPTURE_Q : PROMO_QUEEN;
+        case 'r':
+        case 'R': return is_capture ? PROMO_CAPTURE_R : PROMO_ROOK;
+        case 'b':
+        case 'B': return is_capture ? PROMO_CAPTURE_B : PROMO_BISHOP;
+        case 'n':
+        case 'N': return is_capture ? PROMO_CAPTURE_K : PROMO_KNIGHT;
+        default:
+            // default to queen if no char / invalid char
+            return is_capture ? PROMO_CAPTURE_Q : PROMO_QUEEN;
+        }
+    };
+
+    // ---- Castling ----
+    if (is_king && std::abs(to_file - from_file) == 2)
+    {
+        if (to_file > from_file)
+            flag = CASTLE_KINGSIDE;
+        else
+            flag = CASTLE_QUEENSIDE;
+
+        return Move(from, to, flag);
+    }
+
+    // ---- En passant ----
+    if (is_pawn && ep_square != -1 && to == ep_square && !(opp_pieces & to_bit))
+    {
+        // pawn moves diagonally to empty square that is ep_square
+        flag = EN_PASSANT;
+        return Move(from, to, flag);
+    }
+
+    // ---- Promotions (quiet or capture) ----
+    if (is_pawn && promotion_rank)
+    {
+        bool is_capture = (opp_pieces & to_bit) != 0;
+        flag = classify_promo(is_capture);
+        return Move(from, to, flag);
+    }
+
+    // ---- Double pawn push ----
+    if (is_pawn && std::abs(to - from) == 16)
+    {
+        flag = DOUBLE_PUSH;
+        return Move(from, to, flag);
+    }
+
+    // ---- Normal capture / quiet ----
+    if (opp_pieces & to_bit)
+        flag = CAPTURE;
+    else
+        flag = QUIET;
+
+    return Move(from, to, flag);
+}
+
 
 // for testing purposes
 void Board::print_board() const
