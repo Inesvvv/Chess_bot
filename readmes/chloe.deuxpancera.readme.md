@@ -13,3 +13,4 @@
 - Implemented king location detection
 - Implemented check and double check detection
 - Implemented legal move filtering and added this to get_random_move so that it only returns legal moves
+- Implemented pin detection using pin masks and added this to generate_move()
