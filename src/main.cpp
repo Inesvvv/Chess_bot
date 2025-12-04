@@ -8,6 +8,7 @@
 #include <fstream>
 #include <vector>
 #include <ctime>
+#include <iomanip>
 
 #include "board.h"
 #include "perft.cpp"
@@ -147,6 +148,50 @@ int main(int argc, char *argv[])
             }
         }
     }
+    
+    // Perft split runner: ./chesster split 4
+    if (argc >= 3 && std::string(argv[1]) == "split")
+    {
+        int depth = std::stoi(argv[2]);
+        std::cout << "Perft split for depth " << depth << ":\n";
+        perft_split(depth);
+        return 0;
+    }
+
+        // Debug path runner: ./chesster debugpath d2d3,e7e5,c1g5
+        if (argc >= 3 && std::string(argv[1]) == "debugpath")
+        {
+            std::string moves_arg = argv[2];
+            std::vector<std::string> moves;
+            size_t pos = 0;
+            while (pos < moves_arg.size()) {
+                size_t comma = moves_arg.find(',', pos);
+                if (comma == std::string::npos) comma = moves_arg.size();
+                moves.push_back(moves_arg.substr(pos, comma - pos));
+                pos = comma + 1;
+            }
+            Board dbg;
+            std::cout << "Applying debug path:";
+            for (auto &m : moves) std::cout << " " << m;
+            std::cout << "\n";
+            for (auto &u : moves)
+            {
+                Move mv = dbg.parse_uci_move(u);
+                if (mv.from < 0) { std::cerr << "Invalid move in debug path: " << u << "\n"; return 1; }
+                std::cout << "Applying: " << u << " flag=" << int(mv.flag) << "\n";
+                dbg.make_move(mv);
+            }
+            dbg.print_board();
+        std::cout << "ep_square = " << dbg.ep_square << "\n";
+            std::cout << "In check: " << (dbg.in_check() ? "YES" : "NO") << "\n";
+            auto legal = dbg.generate_legal_moves();
+            std::cout << "Legal moves count: " << legal.size() << "\n";
+            for (const Move &mv : legal)
+            {
+                std::cout << mv.from << "->" << mv.to << " flag=" << int(mv.flag) << "\n";
+            }
+            return 0;
+        }
 
     // store who's turn it is to move according to the number of previous moves
     //(even is white, odd is black)
@@ -206,22 +251,59 @@ int main(int argc, char *argv[])
     RUN_TEST(perft_depth3);
     RUN_TEST(perft_depth4);
 
-    // Debug: print per-root move breakdown for depth 3 to investigate failures
-    std::cout << "\nPerft split (depth 3):\n";
-    perft_split(3);
-    std::cout << "\nPerft split (depth 2):\n";
-    perft_split(2);
-    std::cout << "\nPerft split (depth 4):\n";
-    perft_split(4);
+    // ======== TESTING FEATURES ===========
+    std::cout << "\n════════════════════════════════════════════\n";
+    std::cout << "     Feature Validation Matrix\n";
+    std::cout << "════════════════════════════════════════════\n\n";
+    
+    struct FeatureTest { std::string name; void (*test)(); };
+    FeatureTest features[] = {
+        {"Pawn moves", test_feature_pawn_moves},
+        {"Pawn double push", test_feature_pawn_double_push},
+        {"Pawn captures", test_feature_pawn_captures},
+        {"En passant", test_feature_en_passant},
+        {"Promotions", test_feature_promotions},
+        {"Knight moves", test_feature_knight_moves},
+        {"Bishop moves", test_feature_bishop_moves},
+        {"Rook moves", test_feature_rook_moves},
+        {"Queen moves", test_feature_queen_moves},
+        {"King moves", test_feature_king_moves},
+        {"Castling", test_feature_castling},
+        {"Check detection", test_feature_check_detection},
+        {"Pin detection", test_feature_pin_detection},
+        {"Legal move filtering", test_feature_legal_move_filtering},
+        {"Board state tracking", test_feature_board_state_tracking},
+        {"Move parsing", test_feature_move_parsing}
+    };
+    
+    // Display header
+    std::cout << "| Feature                  | Status     |\n";
+    std::cout << "|--------------------------|------------|\n";
+    
+    int feature_passed = 0;
+    int feature_total = sizeof(features) / sizeof(features[0]);
+    
+    for (const auto &f : features) {
+        try {
+            f.test();
+            std::cout << "| " << std::setw(24) << std::left << f.name << " | ✓ PASS     |\n";
+            feature_passed++;
+        } catch (const std::exception &e) {
+            std::cout << "| " << std::setw(24) << std::left << f.name << " | ✗ FAIL     |\n";
+        }
+    }
+    
+    std::cout << "|--------------------------|------------|\n";
 
     std::cout << "\n════════════════════════════════════════════\n";
     std::cout << " Test Summary\n";
     std::cout << "════════════════════════════════════════════\n";
-    std::cout << " Passed: " << tests_passed << "\n";
-    std::cout << " Failed: " << tests_failed << "\n";
+    std::cout << " PERFT Tests Passed: " << tests_passed << "/4\n";
+    std::cout << " Feature Tests Passed: " << feature_passed << "/" << feature_total << "\n";
+    std::cout << " Total Passed: " << (tests_passed + feature_passed) << "/" << (4 + feature_total) << "\n";
     std::cout << "════════════════════════════════════════════\n";
 
-    return tests_failed == 0 ? 0 : 1;
+    return (tests_failed == 0 && feature_passed == feature_total) ? 0 : 1;
 
     //return 0;
 }

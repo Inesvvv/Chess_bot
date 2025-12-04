@@ -968,7 +968,6 @@ void Board::make_move(const Move &move)
         return;
     }
 
-    ep_square = -1;
 
     // ===== CASTLING SPECIAL CASES =====
     if (move.flag == CASTLE_KINGSIDE || move.flag == CASTLE_QUEENSIDE)
