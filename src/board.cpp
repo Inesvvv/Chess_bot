@@ -7,6 +7,7 @@
 #include "magic.h"
 #include <cstdlib>
 #include <iostream>
+#include <array>
 
 // Memo:
 // rank = rows (1 to 8)
@@ -222,6 +223,205 @@ int Board::count_checkers(bool white_to_move) const
     return attackers;
 }
 
+// compute pinned pieces for a given color
+// produces a bitboard with all pinned pieces marked as 1-bits
+Bitboards::Bitboard Board::compute_pinned(bool for_white) const
+{
+    Bitboards::Bitboard pinned = 0ULL;
+
+    int king_square = find_king(for_white);
+    if (king_square < 0)
+        return pinned;
+
+    int king_rank = king_square / 8;
+    int king_file = king_square % 8;
+
+    // 8 directions: N, S, E, W, NE, NW, SE, SW
+    const int dr[8] = {1, -1, 0, 0, 1, 1, -1, -1};
+    const int df[8] = {0, 0, 1, -1, 1, -1, 1, -1};
+
+    for (int dir = 0; dir < 8; ++dir)
+    {
+        int r = king_rank + dr[dir];
+        int f = king_file + df[dir];
+        bool found_friendly = false;
+        int friendly_sq = -1;
+
+        while (r >= 0 && r < 8 && f >= 0 && f < 8)
+        {
+            int s = sq(f, r);
+            Bitboard sbit = bit(s);
+
+            if (occupied & sbit)
+            {
+                bool is_friendly = for_white ? (all_white & sbit) : (all_black & sbit);
+                bool is_enemy = for_white ? (all_black & sbit) : (all_white & sbit);
+
+                if (is_friendly)
+                {
+                    if (!found_friendly)
+                    {
+                        found_friendly = true;
+                        friendly_sq = s;
+                    }
+                    else
+                    {
+                        break;
+                    }
+                }
+                else if (is_enemy)
+                {
+                    if (!found_friendly)
+                    {
+                        break;
+                    }
+                    else
+                    {
+                        // check whether this enemy piece is a sliding attacker along this direction
+                        bool is_diag = (dir >= 4);
+                        Bitboard enemy_rooks = for_white ? black_rooks : white_rooks;
+                        Bitboard enemy_bishops = for_white ? black_bishops : white_bishops;
+                        Bitboard enemy_queens = for_white ? black_queens : white_queens;
+
+                        bool slider = false;
+                        if (is_diag)
+                        {
+                            if ((enemy_bishops & sbit) || (enemy_queens & sbit))
+                                slider = true;
+                        }
+                        else
+                        {
+                            if ((enemy_rooks & sbit) || (enemy_queens & sbit))
+                                slider = true;
+                        }
+
+                        if (slider)
+                        {
+                            pinned |= bit(friendly_sq);
+                        }
+                        break;
+                    }
+                }
+                else
+                {
+                    break;
+                }
+            }
+
+            r += dr[dir];
+            f += df[dir];
+        }
+    }
+
+    return pinned;
+}
+
+
+// build legal moves for every pinned pieces
+// if a piece is pinned, its allowed moves are only along line between king and attacker or capturing the attacker
+// if a piece is not pinned, its mask stays 0 so theres no restriction
+void Board::compute_pin_masks(bool for_white, std::array<Bitboards::Bitboard, 64> &out_masks) const
+{
+    using Bitboard = Bitboards::Bitboard;
+    out_masks.fill(0ULL);
+
+    int king_square = find_king(for_white);
+    if (king_square < 0)
+        return;
+
+    int king_rank = king_square / 8;
+    int king_file = king_square % 8;
+
+    const int dr[8] = {1, -1, 0, 0, 1, 1, -1, -1};
+    const int df[8] = {0, 0, 1, -1, 1, -1, 1, -1};
+
+    for (int dir = 0; dir < 8; ++dir)
+    {
+        int r = king_rank + dr[dir];
+        int f = king_file + df[dir];
+        bool found_friendly = false;
+        int friendly_sq = -1;
+
+        while (r >= 0 && r < 8 && f >= 0 && f < 8)
+        {
+            int s = sq(f, r);
+            Bitboard sbit = bit(s);
+
+            if (occupied & sbit)
+            {
+                bool is_friendly = for_white ? (all_white & sbit) : (all_black & sbit);
+                bool is_enemy = for_white ? (all_black & sbit) : (all_white & sbit);
+
+                if (is_friendly)
+                {
+                    if (!found_friendly)
+                    {
+                        found_friendly = true;
+                        friendly_sq = s;
+                    }
+                    else
+                    {
+                        break;
+                    }
+                }
+                else if (is_enemy)
+                {
+                    if (!found_friendly)
+                    {
+                        break;
+                    }
+                    else
+                    {
+                        // check whether this enemy piece is a slider along this direction
+                        bool is_diag = (dir >= 4);
+                        Bitboard enemy_rooks = for_white ? black_rooks : white_rooks;
+                        Bitboard enemy_bishops = for_white ? black_bishops : white_bishops;
+                        Bitboard enemy_queens = for_white ? black_queens : white_queens;
+
+                        bool slider = false;
+                        if (is_diag)
+                        {
+                            if ((enemy_bishops & sbit) || (enemy_queens & sbit))
+                                slider = true;
+                        }
+                        else
+                        {
+                            if ((enemy_rooks & sbit) || (enemy_queens & sbit))
+                                slider = true;
+                        }
+
+                        if (slider)
+                        {
+                            // allowed squares are the line between king and attacker
+                            Bitboard line = 0ULL;
+                            if (is_diag)
+                            {
+                                line = Magic::get_bishop_attacks(king_square, 0ULL) & Magic::get_bishop_attacks(s, 0ULL);
+                            }
+                            else
+                            {
+                                line = Magic::get_rook_attacks(king_square, 0ULL) & Magic::get_rook_attacks(s, 0ULL);
+                            }
+                            // include attacker square (so pinned piece can capture attacker)
+                            line |= bit(s);
+                            // store allowed moves for the pinned friendly piece
+                            out_masks[friendly_sq] = line | bit(friendly_sq);
+                        }
+                        break;
+                    }
+                }
+                else
+                {
+                    break;
+                }
+            }
+
+            r += dr[dir];
+            f += df[dir];
+        }
+    }
+}
+
 // checks if the current player is in check
 bool Board::in_check() const
 {
@@ -253,6 +453,10 @@ std::vector<Move> Board::generate_moves() const
         enemy_pieces = all_white;
     }
 
+    // compute pin masks for side to move to restrict moves of pinned pieces
+    std::array<Bitboards::Bitboard, 64> pin_masks;
+    compute_pin_masks(team_white, pin_masks);
+
     // ==== KNIGHT MOVES =======
     Bitboard knights;
     Bitboard enemy_knights;
@@ -272,7 +476,10 @@ std::vector<Move> Board::generate_moves() const
     {
         int from = pop_lsb(temp_knights);
         Bitboard attacks = knight_attacks[from] & ~pieces; // all the spots the knight can move to AND all the spots where our pieces are not
-
+        // if piece is pinned, restrict its moves to the pin line
+        Bitboard pin = pin_masks[from];
+        if (pin)
+            attacks &= pin;
         Bitboard temp_attacks = attacks;
         while (temp_attacks)
         {
@@ -403,6 +610,7 @@ std::vector<Move> Board::generate_moves() const
     {
         int from = pop_lsb(temp_pawns);
         // FOR PUSHES
+        Bitboard pin = pin_masks[from];
         if (team_white)
         { // need to differentiate because white move from bottom to top and black from top to bottom
             int to = from + 8;
@@ -468,6 +676,9 @@ std::vector<Move> Board::generate_moves() const
             attacks = pawn_attacks_black[from];
         }
         Bitboard capture_targets = attacks & enemy_pieces;
+        // restrict captures if pinned
+        if (pin)
+            capture_targets &= pin;
         Bitboard temp_caps = capture_targets;
         while (temp_caps)
         {
@@ -503,7 +714,11 @@ std::vector<Move> Board::generate_moves() const
             }
 
             if (ep_attack)
-                moves.push_back(Move(from, ep_square, EN_PASSANT));
+            {
+                // conservative handling: if pinned, only allow en-passant if ep destination is on pin line
+                if (!pin || (bit(ep_square) & pin))
+                    moves.push_back(Move(from, ep_square, EN_PASSANT));
+            }
         }
     }
 
@@ -514,6 +729,9 @@ std::vector<Move> Board::generate_moves() const
     {
         int from = pop_lsb(temp_rooks);
         Bitboard attacks = Magic::get_rook_attacks(from, occupied) & ~pieces;
+        Bitboard pin = pin_masks[from];
+        if (pin)
+            attacks &= pin;
 
         Bitboard temp_attacks = attacks;
         while (temp_attacks)
@@ -530,6 +748,9 @@ std::vector<Move> Board::generate_moves() const
     {
         int from = pop_lsb(temp_bishops);
         Bitboard attacks = Magic::get_bishop_attacks(from, occupied) & ~pieces;
+        Bitboard pin = pin_masks[from];
+        if (pin)
+            attacks &= pin;
 
         Bitboard temp_attacks = attacks;
         while (temp_attacks)
@@ -547,6 +768,9 @@ std::vector<Move> Board::generate_moves() const
     {
         int from = pop_lsb(temp_queens);
         Bitboard attacks = Magic::get_queen_attacks(from, occupied) & ~pieces;
+        Bitboard pin = pin_masks[from];
+        if (pin)
+            attacks &= pin;
 
         Bitboard temp_attacks = attacks;
         while (temp_attacks)

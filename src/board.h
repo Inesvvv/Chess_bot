@@ -11,6 +11,7 @@
 
 #include "bitboards.h"
 #include "move.h"
+#include <array>
 #pragma once
 #include <cstdint>
 #include <vector>
@@ -40,6 +41,9 @@ class Board {
         int find_king(bool white) const; // find the king's square
 
         int count_checkers(bool white_to_move) const; // detect check and double check
+
+        Bitboards::Bitboard compute_pinned(bool for_white) const; // returns mask of pinned pieces for the given color
+        void compute_pin_masks(bool for_white, std::array<Bitboards::Bitboard, 64> &out_masks) const; // per-square allowed move masks for pinned pieces
 
         Move parse_uci_move(const std::string &uci) const;
 
