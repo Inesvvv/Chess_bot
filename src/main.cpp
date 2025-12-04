@@ -255,6 +255,7 @@ int main(int argc, char *argv[])
     RUN_TEST(perft_depth4);
     RUN_TEST(perft_depth5);
     RUN_TEST(perft_depth6);
+    //RUN_TEST(perft_depth7);  // DO NOT UNCOMMENT - TEST 7 passes but its way too long so we still have optimization to do 
 
     // ======== TESTING FEATURES ===========
     std::cout << "\n════════════════════════════════════════════\n";

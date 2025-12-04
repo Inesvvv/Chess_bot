@@ -427,6 +427,8 @@ bool Board::in_check() const
 std::vector<Move> Board::generate_pseudo_legal_moves() const
 {
     std::vector<Move> moves;
+    moves.reserve(64); // optimization tactic to avoid need to reallocate memory for each move so we just create a big vector at the beginning to gain time on the push_back operations
+    
     Bitboard pieces;
     Bitboard enemy_pieces;
     if (team_white)
@@ -791,23 +793,29 @@ std::vector<Move> Board::generate_pseudo_legal_moves() const
 }
 
 // Check if a move is legal (doesn't leave king in check)
+// This was taking too long because we were always copying to be able to tests move so we implement make and unmake here that temporarly test a move and then restore the original bitboard
+// HUGE improvement in move generation optimization from 74 seconds to 36 seconds for perft depth6 
 bool Board::is_move_legal(const Move &m) const
 {
-    Bitboards::BoardState snap = Bitboards::snapshot_state();
-    Board copy = *this;
-    copy.make_move(m);
+    // Cast away const to use make/unmake but we restore state after
+    Board* self = const_cast<Board*>(this);
     
-    int king_square = copy.find_king(!copy.team_white);
+    self->make_move(m);
     
-    // If king not found, move is illegal
+    // After make_move team_white has flipped so need to modify king to !team_white
+    int king_square = self->find_king(!self->team_white);
+    
+    // If king not found move illegal
     if (king_square == -1)
     {
-        Bitboards::restore_state(snap);
+        self->unmake_move(m);
         return false;
     }
     
-    bool in_check = copy.is_square_attacked(king_square, copy.team_white);
-    Bitboards::restore_state(snap);
+    // Check if our king is attacked by the opponent (current team_white)
+    bool in_check = self->is_square_attacked(king_square, self->team_white);
+    
+    self->unmake_move(m);
     
     return !in_check;
 }
@@ -817,6 +825,7 @@ std::vector<Move> Board::generate_moves() const
 {
     std::vector<Move> pseudo_legal = generate_pseudo_legal_moves();
     std::vector<Move> legal;
+    legal.reserve(pseudo_legal.size()); // Most moves are legal
     
     for (const Move &m : pseudo_legal)
     {
@@ -1204,6 +1213,7 @@ void Board::make_move(const Move &move)
     team_white = !team_white;
 }
 
+// Unmake move used in is_move_legal to restore the original bitboard after testing a move 
 void Board::unmake_move(const Move &move)
 {
     if (undo_stack.empty())

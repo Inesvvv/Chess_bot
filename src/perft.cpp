@@ -45,9 +45,14 @@ uint64_t perft(Board &b, int depth) {
     if (depth == 0)
         return 1;
 
-    uint64_t nodes = 0;
     std::vector<Move> moves = b.generate_moves();
+    
+    // Implemenetd Bulk counting optimization method to avoid recursing on depth 1 
+    // at depth 1, just return move count
+    if (depth == 1)
+        return moves.size();
 
+    uint64_t nodes = 0;
     for (const Move &m : moves) {
         b.make_move(m);
         nodes += perft(b, depth - 1);
@@ -736,6 +741,16 @@ TEST(perft_depth6) {
     std::cout << "Perft(6) = " << result << " (expected 119060324)\n";
     if (result != 119060324) {
         std::string msg = "Expected 119060324, got " + std::to_string(result);
+        throw std::runtime_error(msg);
+    }
+}
+
+TEST(perft_depth7) {
+    std::cout << "(depth 7 - will take ~2 minutes...)\n";
+    uint64_t result = perft_startpos(7);
+    std::cout << "Perft(7) = " << result << " (expected 3195901860)\n";
+    if (result != 3195901860ULL) {
+        std::string msg = "Expected 3195901860, got " + std::to_string(result);
         throw std::runtime_error(msg);
     }
 }
