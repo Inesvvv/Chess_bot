@@ -184,7 +184,7 @@ int main(int argc, char *argv[])
             dbg.print_board();
         std::cout << "ep_square = " << dbg.ep_square << "\n";
             std::cout << "In check: " << (dbg.in_check() ? "YES" : "NO") << "\n";
-            auto legal = dbg.generate_legal_moves();
+            auto legal = dbg.generate_moves();
             std::cout << "Legal moves count: " << legal.size() << "\n";
             for (const Move &mv : legal)
             {
@@ -230,16 +230,19 @@ int main(int argc, char *argv[])
         return 1;
     }
 
-    // Write to the output file
-    std::ofstream out(output_file);
-    if (!out)
+    // Write to the output file (only if one was specified)
+    if (!output_file.empty())
     {
-        std::cerr << "ERROR: could not open output file '"
-                  << output_file << "' for writing\n";
-        return 1;
+        std::ofstream out(output_file);
+        if (!out)
+        {
+            std::cerr << "ERROR: could not open output file '"
+                      << output_file << "' for writing\n";
+            return 1;
+        }
+        // print the next move into the file
+        out << next_move_str << '\n';
     }
-    // print the next move into the file
-    out << next_move_str << '\n';
 
     // ======== TESTING PERFT ===========
     std::cout << "════════════════════════════════════════════\n";
@@ -250,6 +253,8 @@ int main(int argc, char *argv[])
     RUN_TEST(perft_depth2);
     RUN_TEST(perft_depth3);
     RUN_TEST(perft_depth4);
+    RUN_TEST(perft_depth5);
+    RUN_TEST(perft_depth6);
 
     // ======== TESTING FEATURES ===========
     std::cout << "\n════════════════════════════════════════════\n";

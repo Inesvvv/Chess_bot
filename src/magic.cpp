@@ -3,6 +3,8 @@
 // Authors: Chloe Deux-Pancera, Ines Vallot, Mathis Vernier, and Apolline Weinstein
 // Created: 2025-12.01
 
+// Currently not using mgic because was making illegal/ or removing legal move but NEED to update later to upgrade speed 
+
 #include "magic.h"
 #include <iostream>
 #include <vector>
@@ -282,19 +284,32 @@ void init_magics() {
     }
 }
 
-// Fast lookup functions
+// ============================================================================
+// MAGIC BITBOARD LOOKUP (currently disabled due to index collision bug)
+// TODO: Fix magic numbers or regenerate them to re-enable fast lookup
+// ============================================================================
+// Bitboard get_rook_attacks(int square, Bitboard occupied) {
+//     const MagicEntry& magic = rook_magics[square];
+//     occupied &= magic.mask;
+//     int index = (int)((occupied * magic.magic) >> magic.shift);
+//     return magic.attacks[index];
+// }
+//
+// Bitboard get_bishop_attacks(int square, Bitboard occupied) {
+//     const MagicEntry& magic = bishop_magics[square];
+//     occupied &= magic.mask;
+//     int index = (int)((occupied * magic.magic) >> magic.shift);
+//     return magic.attacks[index];
+// }
+// ============================================================================
+
+// Slow but correct attack generation (used until magic bitboards are fixed)
 Bitboard get_rook_attacks(int square, Bitboard occupied) {
-    const MagicEntry& magic = rook_magics[square];
-    occupied &= magic.mask;
-    int index = (int)((occupied * magic.magic) >> magic.shift);
-    return magic.attacks[index];
+    return generate_rook_attacks_slow(square, occupied);
 }
 
 Bitboard get_bishop_attacks(int square, Bitboard occupied) {
-    const MagicEntry& magic = bishop_magics[square];
-    occupied &= magic.mask;
-    int index = (int)((occupied * magic.magic) >> magic.shift);
-    return magic.attacks[index];
+    return generate_bishop_attacks_slow(square, occupied);
 }
 
 Bitboard get_queen_attacks(int square, Bitboard occupied) {

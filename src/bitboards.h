@@ -88,6 +88,14 @@ namespace Bitboards
         Bitboard all_black;
         Bitboard occupied;
         Bitboard empty;
+        
+        // Board member variables for full state synchronization
+        bool team_white;
+        int ep_square;
+        bool white_castle_kingside;
+        bool white_castle_queenside;
+        bool black_castle_kingside;
+        bool black_castle_queenside;
     };
 
     BoardState snapshot_state();
