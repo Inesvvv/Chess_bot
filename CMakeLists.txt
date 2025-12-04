@@ -10,4 +10,6 @@ add_executable(chesster
     src/board.cpp
     src/bitboards.cpp
     src/magic.cpp
+    src/evaluation.cpp
+    src/search.cpp
 )

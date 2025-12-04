@@ -55,7 +55,7 @@ SearchResult find_best_move(Board& board, int maxDepth) {
 
 int negamax(Board& board, int depth, int alpha, int beta) {
     if (depth == 0) {
-        return evaluate(board);
+        return Evaluation::evaluate_board(board);
     }
 
     std::vector<Move> moves = board.generate_legal_moves();
