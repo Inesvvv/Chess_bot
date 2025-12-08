@@ -4,6 +4,8 @@
 #include <vector>
 #include <stdexcept>
 #include <map>
+#include <functional>
+
 #include "board.h"
 #include "move.h"
 #include "bitboards.h"

@@ -303,6 +303,7 @@ Bitboards::Bitboard Board::compute_pinned(bool for_white) const
 
     return pinned;
 }
+
 // build legal moves for pinned pieces
 void Board::compute_pin_masks(bool for_white, std::array<Bitboards::Bitboard, 64> &out_masks) const
 {
@@ -628,27 +629,23 @@ std::vector<Move> Board::generate_pseudo_legal_moves() const
             int to = from + 8;
             if (to < 64 && !(occupied & bit(to)))
             {
-                // If pawn is pinned, only allow pushes that stay on the pin line
-                if (!pin || (bit(to) & pin))
+                int to_rank = to / 8;
+                if (to_rank == 7)
                 {
-                    int to_rank = to / 8;
-                    if (to_rank == 7)
+                    moves.push_back(Move(from, to, PROMO_QUEEN));
+                    moves.push_back(Move(from, to, PROMO_ROOK));
+                    moves.push_back(Move(from, to, PROMO_BISHOP));
+                    moves.push_back(Move(from, to, PROMO_KNIGHT));
+                }
+                else
+                {
+                    moves.push_back({from, to});
+                    if (from / 8 == 1)
                     {
-                            moves.push_back(Move(from, to, PROMO_QUEEN));
-                        moves.push_back(Move(from, to, PROMO_ROOK));
-                        moves.push_back(Move(from, to, PROMO_BISHOP));
-                        moves.push_back(Move(from, to, PROMO_KNIGHT));
-                    }
-                    else
-                    {
-                        moves.push_back({from, to});
-                            if (from / 8 == 1)
+                        int to2 = from + 16;
+                        if (!(occupied & bit(to2)))
                         {
-                            int to2 = from + 16;
-                            if (!(occupied & bit(to2)))
-                            {
                             moves.push_back(Move(from, to2, DOUBLE_PUSH));
-                        }
                         }
                     }
                 }
@@ -659,27 +656,23 @@ std::vector<Move> Board::generate_pseudo_legal_moves() const
             int to = from - 8;
             if (to >= 0 && !(occupied & bit(to)))
             {
-                // If pawn is pinned, only allow pushes that stay on the pin line
-                if (!pin || (bit(to) & pin))
+                int to_rank = to / 8;
+                if (to_rank == 0)
                 {
-                    int to_rank = to / 8;
-                    if (to_rank == 0)
+                    moves.push_back(Move(from, to, PROMO_QUEEN));
+                    moves.push_back(Move(from, to, PROMO_ROOK));
+                    moves.push_back(Move(from, to, PROMO_BISHOP));
+                    moves.push_back(Move(from, to, PROMO_KNIGHT));
+                }
+                else
+                {
+                    moves.push_back({from, to});
+                    if (from / 8 == 6)
                     {
-                            moves.push_back(Move(from, to, PROMO_QUEEN));
-                        moves.push_back(Move(from, to, PROMO_ROOK));
-                        moves.push_back(Move(from, to, PROMO_BISHOP));
-                        moves.push_back(Move(from, to, PROMO_KNIGHT));
-                    }
-                    else
-                    {
-                        moves.push_back({from, to});
-                            if (from / 8 == 6)
+                        int to2 = from - 16;
+                        if (!(occupied & bit(to2)))
                         {
-                            int to2 = from - 16;
-                            if (!(occupied & bit(to2)))
-                            {
                             moves.push_back(Move(from, to2, DOUBLE_PUSH));
-                        }
                         }
                     }
                 }
@@ -734,8 +727,6 @@ std::vector<Move> Board::generate_pseudo_legal_moves() const
 
             if (ep_attack)
             {
-                // allow en-passant as a pseudo-legal move; exact legality (discovered checks) will be filtered by generate_legal_moves
-                moves.push_back(Move(from, ep_square, EN_PASSANT));
                 moves.push_back(Move(from, ep_square, EN_PASSANT));
             }
         }
@@ -1036,6 +1027,7 @@ void Board::make_move(const Move &move)
         team_white = !team_white;
         return;
     }
+
 
     // ===== CASTLING SPECIAL CASES =====
     if (move.flag == CASTLE_KINGSIDE || move.flag == CASTLE_QUEENSIDE)
