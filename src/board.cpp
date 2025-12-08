@@ -316,7 +316,6 @@ Bitboards::Bitboard Board::compute_pinned(bool for_white) const
     return pinned;
 }
 
-
 // build legal moves for every pinned pieces
 // if a piece is pinned, its allowed moves are only along line between king and attacker or capturing the attacker
 // if a piece is not pinned, its mask stays 0 so theres no restriction
@@ -616,24 +615,28 @@ std::vector<Move> Board::generate_moves() const
             int to = from + 8;
             if (to < 64 && !(occupied & bit(to)))
             {
-                int to_rank = to / 8;
-                if (to_rank == 7)
+                // If pawn is pinned, only allow pushes that stay on the pin line
+                if (!pin || (bit(to) & pin))
                 {
-                    // Promotion quiet moves
-                    moves.push_back(Move(from, to, PROMO_QUEEN));
-                    moves.push_back(Move(from, to, PROMO_ROOK));
-                    moves.push_back(Move(from, to, PROMO_BISHOP));
-                    moves.push_back(Move(from, to, PROMO_KNIGHT));
-                }
-                else
-                {
-                    moves.push_back({from, to});
-                    // double push (only from rank 2 so index rank = 1)
-                    if (from / 8 == 1)
+                    int to_rank = to / 8;
+                    if (to_rank == 7)
                     {
-                        int to2 = from + 16;
-                        if (!(occupied & bit(to2)))
-                            moves.push_back(Move(from, to2, DOUBLE_PUSH));
+                        // Promotion quiet moves
+                        moves.push_back(Move(from, to, PROMO_QUEEN));
+                        moves.push_back(Move(from, to, PROMO_ROOK));
+                        moves.push_back(Move(from, to, PROMO_BISHOP));
+                        moves.push_back(Move(from, to, PROMO_KNIGHT));
+                    }
+                    else
+                    {
+                        moves.push_back({from, to});
+                        // double push (only from rank 2 so index rank = 1)
+                        if (from / 8 == 1)
+                        {
+                            int to2 = from + 16;
+                            if (!(occupied & bit(to2)))
+                                moves.push_back(Move(from, to2, DOUBLE_PUSH));
+                        }
                     }
                 }
             }
@@ -643,24 +646,28 @@ std::vector<Move> Board::generate_moves() const
             int to = from - 8;
             if (to >= 0 && !(occupied & bit(to)))
             {
-                int to_rank = to / 8;
-                if (to_rank == 0)
+                // If pawn is pinned, only allow pushes that stay on the pin line
+                if (!pin || (bit(to) & pin))
                 {
-                    // Promotion quiet moves
-                    moves.push_back(Move(from, to, PROMO_QUEEN));
-                    moves.push_back(Move(from, to, PROMO_ROOK));
-                    moves.push_back(Move(from, to, PROMO_BISHOP));
-                    moves.push_back(Move(from, to, PROMO_KNIGHT));
-                }
-                else
-                {
-                    moves.push_back({from, to});
-                    // double push (from rank 7)
-                    if (from / 8 == 6)
+                    int to_rank = to / 8;
+                    if (to_rank == 0)
                     {
-                        int to2 = from - 16;
-                        if (!(occupied & bit(to2)))
-                            moves.push_back(Move(from, to2, DOUBLE_PUSH));
+                        // Promotion quiet moves
+                        moves.push_back(Move(from, to, PROMO_QUEEN));
+                        moves.push_back(Move(from, to, PROMO_ROOK));
+                        moves.push_back(Move(from, to, PROMO_BISHOP));
+                        moves.push_back(Move(from, to, PROMO_KNIGHT));
+                    }
+                    else
+                    {
+                        moves.push_back({from, to});
+                        // double push (from rank 7)
+                        if (from / 8 == 6)
+                        {
+                            int to2 = from - 16;
+                            if (!(occupied & bit(to2)))
+                                moves.push_back(Move(from, to2, DOUBLE_PUSH));
+                        }
                     }
                 }
             }
@@ -715,9 +722,8 @@ std::vector<Move> Board::generate_moves() const
 
             if (ep_attack)
             {
-                // conservative handling: if pinned, only allow en-passant if ep destination is on pin line
-                if (!pin || (bit(ep_square) & pin))
-                    moves.push_back(Move(from, ep_square, EN_PASSANT));
+                // allow en-passant as a pseudo-legal move; exact legality (discovered checks) will be filtered by generate_legal_moves
+                moves.push_back(Move(from, ep_square, EN_PASSANT));
             }
         }
     }
@@ -967,7 +973,6 @@ void Board::make_move(const Move &move)
         team_white = !team_white;
         return;
     }
-
 
     // ===== CASTLING SPECIAL CASES =====
     if (move.flag == CASTLE_KINGSIDE || move.flag == CASTLE_QUEENSIDE)
