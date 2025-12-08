@@ -10,7 +10,7 @@ int negamax(Board& board, int depth, int alpha, int beta);
 
 // Top-level function called by your engine
 SearchResult find_best_move(Board& board, int maxDepth) {
-    std::vector<Move> moves = board.generate_legal_moves();
+    std::vector<Move> moves = board.generate_moves(); //changed from generate_legal_moves to generate_moves 
 
     if (moves.empty()) {
         Move dummyMove = Move(-1, -1, QUIET);
@@ -58,7 +58,7 @@ int negamax(Board& board, int depth, int alpha, int beta) {
         return Evaluation::evaluate_board(board);
     }
 
-    std::vector<Move> moves = board.generate_legal_moves();
+    std::vector<Move> moves = board.generate_moves();
 
     if (moves.empty()) {
         //no legal moves: checkmate or stalemate

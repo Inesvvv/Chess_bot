@@ -17,20 +17,20 @@ using namespace Bitboards;
 
 Board::Board()
 {
-    // Inititalize bitboards, attacks and masks (later we don't have that yet but don't forget to uncomment)
+    // Initialize bitboards, attacks and masks
     Bitboards::init_bitboards();
     Bitboards::init_attack_tables();
-    // Bitboards::init_masks();
-    Magic::init_magics(); // init magic bitboards for slider attacks
+    Bitboards::init_masks();
+    Magic::init_magics();
 }
 
-// utility fuction that pops least significant and returns index (= gets all positions of our pieces)
+// utility function that pops least significant bit and returns index
 int Board::pop_lsb(Bitboards::Bitboard &b) const
 {
     if (b == 0)
-        return -1;                     // no pieces left or we have iterated through all
-    int position = __builtin_ctzll(b); // built in fucntion that counts the trailign zeros before the first 1 (= returns the position of the first piece)
-    b &= b - 1;                        // removes the least significant bit (= the piece we just found)
+        return -1;
+    int position = __builtin_ctzll(b);
+    b &= b - 1;
     return position;
 }
 
@@ -110,15 +110,16 @@ int Board::find_king(bool by_white) const
         }
     }
 
-    return -1; // fallback but shouldn't happen
+    return -1;
 }
 
 // detect check and double check
 int Board::count_checkers(bool white_to_move) const
 {
-
-    // find the king's sqaure
     int king_square = find_king(white_to_move);
+    if (king_square < 0)
+        return 0;
+
     int king_rank = king_square / 8;
     int king_file = king_square % 8;
 
@@ -184,18 +185,6 @@ int Board::count_checkers(bool white_to_move) const
         }
     }
 
-    // king check
-    Bitboard king_mask = king_attacks[king_square];
-    Bitboard king_attackers = king_mask & (by_white ? white_kings : black_kings);
-
-    for (int i = 0; i < 64; i++)
-    {
-        if (king_attackers & bit(i))
-        {
-            attackers += 1;
-        }
-    }
-
     // bishop and queen diagonal check
     Bitboard bishop_rays = Magic::get_bishop_attacks(king_square, occupied);
     Bitboard diagonal_attackers = bishop_rays & ((by_white ? white_bishops : black_bishops) | (by_white ? white_queens : black_queens));
@@ -224,7 +213,6 @@ int Board::count_checkers(bool white_to_move) const
 }
 
 // compute pinned pieces for a given color
-// produces a bitboard with all pinned pieces marked as 1-bits
 Bitboards::Bitboard Board::compute_pinned(bool for_white) const
 {
     Bitboards::Bitboard pinned = 0ULL;
@@ -315,10 +303,7 @@ Bitboards::Bitboard Board::compute_pinned(bool for_white) const
 
     return pinned;
 }
-
-// build legal moves for every pinned pieces
-// if a piece is pinned, its allowed moves are only along line between king and attacker or capturing the attacker
-// if a piece is not pinned, its mask stays 0 so theres no restriction
+// build legal moves for pinned pieces
 void Board::compute_pin_masks(bool for_white, std::array<Bitboards::Bitboard, 64> &out_masks) const
 {
     using Bitboard = Bitboards::Bitboard;
@@ -371,7 +356,6 @@ void Board::compute_pin_masks(bool for_white, std::array<Bitboards::Bitboard, 64
                     }
                     else
                     {
-                        // check whether this enemy piece is a slider along this direction
                         bool is_diag = (dir >= 4);
                         Bitboard enemy_rooks = for_white ? black_rooks : white_rooks;
                         Bitboard enemy_bishops = for_white ? black_bishops : white_bishops;
@@ -391,20 +375,25 @@ void Board::compute_pin_masks(bool for_white, std::array<Bitboards::Bitboard, 64
 
                         if (slider)
                         {
-                            // allowed squares are the line between king and attacker
-                            Bitboard line = 0ULL;
-                            if (is_diag)
+                            // Build the pin ray square by square from king to attacker
+                            // Include the pinned piece's square in the mask
+                            Bitboard line = bit(friendly_sq);
+                            int curr_r = king_rank + dr[dir];
+                            int curr_f = king_file + df[dir];
+
+                            while (curr_r >= 0 && curr_r < 8 && curr_f >= 0 && curr_f < 8)
                             {
-                                line = Magic::get_bishop_attacks(king_square, 0ULL) & Magic::get_bishop_attacks(s, 0ULL);
+                                int curr_sq = sq(curr_f, curr_r);
+                                line |= bit(curr_sq);
+
+                                if (curr_sq == s)
+                                    break;
+
+                                curr_r += dr[dir];
+                                curr_f += df[dir];
                             }
-                            else
-                            {
-                                line = Magic::get_rook_attacks(king_square, 0ULL) & Magic::get_rook_attacks(s, 0ULL);
-                            }
-                            // include attacker square (so pinned piece can capture attacker)
-                            line |= bit(s);
-                            // store allowed moves for the pinned friendly piece
-                            out_masks[friendly_sq] = line | bit(friendly_sq);
+
+                            out_masks[friendly_sq] = line;
                         }
                         break;
                     }
@@ -424,26 +413,26 @@ void Board::compute_pin_masks(bool for_white, std::array<Bitboards::Bitboard, 64
 // checks if the current player is in check
 bool Board::in_check() const
 {
-    // King of the side to move
     int king_square = find_king(team_white);
     if (king_square == -1)
     {
-        // should never happen in a valid game, but just to make sure
         return false;
     }
 
-    // is that square attacked by the opposite color?
     return is_square_attacked(king_square, !team_white);
 }
 
-std::vector<Move> Board::generate_moves() const
+// Generate all pseudo-legal moves (no legality check - may leave king in check)
+std::vector<Move> Board::generate_pseudo_legal_moves() const
 {
-    std::vector<Move> moves; // create our vector that will contain all the possible moves
+    std::vector<Move> moves;
+    moves.reserve(64); // optimization tactic to avoid need to reallocate memory for each move so we just create a big vector at the beginning to gain time on the push_back operations
+    
     Bitboard pieces;
     Bitboard enemy_pieces;
     if (team_white)
     {
-        pieces = all_white; // our bitboard is the one with all the white pieces
+        pieces = all_white;
         enemy_pieces = all_black;
     }
     else
@@ -452,54 +441,88 @@ std::vector<Move> Board::generate_moves() const
         enemy_pieces = all_white;
     }
 
-    // compute pin masks for side to move to restrict moves of pinned pieces
-    std::array<Bitboards::Bitboard, 64> pin_masks;
-    compute_pin_masks(team_white, pin_masks);
+   
+    // Only for now to avoid compilation errors for removed pin code
+    bool in_double_check = false;
+    if (in_double_check)
+    {
+        Bitboard king = team_white ? white_kings : black_kings;
+        Bitboard temp_king = king;
+        while (temp_king)
+        {
+            int from = pop_lsb(temp_king);
+            Bitboard attacks = king_attacks[from] & ~pieces;
+            Bitboard temp_attacks = attacks;
+            while (temp_attacks)
+            {
+                int to = pop_lsb(temp_attacks);
+
+                // Must check if king move is safe
+                Bitboards::BoardState snap = Bitboards::snapshot_state();
+
+                if (team_white)
+                {
+                    white_kings &= ~bit(from);
+                    white_kings |= bit(to);
+                    // Remove captured piece if any
+                    black_pawns &= ~bit(to);
+                    black_knights &= ~bit(to);
+                    black_bishops &= ~bit(to);
+                    black_rooks &= ~bit(to);
+                    black_queens &= ~bit(to);
+                }
+                else
+                {
+                    black_kings &= ~bit(from);
+                    black_kings |= bit(to);
+                    white_pawns &= ~bit(to);
+                    white_knights &= ~bit(to);
+                    white_bishops &= ~bit(to);
+                    white_rooks &= ~bit(to);
+                    white_queens &= ~bit(to);
+                }
+
+                all_white = white_pawns | white_knights | white_bishops | white_rooks | white_queens | white_kings;
+                all_black = black_pawns | black_knights | black_bishops | black_rooks | black_queens | black_kings;
+                occupied = all_white | all_black;
+
+                bool safe = !is_square_attacked(to, !team_white);
+                Bitboards::restore_state(snap);
+
+                if (safe)
+                {
+                    // Check if capture
+                    if (enemy_pieces & bit(to))
+                        moves.push_back(Move(from, to, CAPTURE));
+                    else
+                        moves.push_back({from, to});
+                }
+            }
+        }
+        return moves;
+    }
 
     // ==== KNIGHT MOVES =======
-    Bitboard knights;
-    Bitboard enemy_knights;
-    if (team_white)
-    {
-        knights = white_knights;
-        enemy_knights = black_knights;
-    }
-    else
-    {
-        knights = black_knights;
-        enemy_knights = white_knights;
-    }
-    // So now our knights are a just a bitboard but we want the specific positions so use our helper function
-    Bitboard temp_knights = knights; // we create temporary bitboard so don't modify  original
+    Bitboard knights = team_white ? white_knights : black_knights;
+    Bitboard temp_knights = knights;
     while (temp_knights)
     {
         int from = pop_lsb(temp_knights);
-        Bitboard attacks = knight_attacks[from] & ~pieces; // all the spots the knight can move to AND all the spots where our pieces are not
-        // if piece is pinned, restrict its moves to the pin line
-        Bitboard pin = pin_masks[from];
-        if (pin)
-            attacks &= pin;
+        Bitboard attacks = knight_attacks[from] & ~pieces;
+        
         Bitboard temp_attacks = attacks;
         while (temp_attacks)
         {
             int to = pop_lsb(temp_attacks);
-            moves.push_back({from, to}); // found possible move so add to the move vector
+            if (enemy_pieces & bit(to))
+                moves.push_back(Move(from, to, CAPTURE));
+            else
+                moves.push_back({from, to});
         }
     }
 
-    // ======= KINSG MOVES ===========
-    Bitboard king;
-    Bitboard enemy_king;
-    if (team_white)
-    {
-        king = white_kings;
-        enemy_king = black_kings;
-    }
-    else
-    {
-        king = black_kings;
-        enemy_king = white_kings;
-    }
+    // ======= KING MOVES ===========
+    Bitboard king = team_white ? white_kings : black_kings;
     Bitboard temp_king = king;
     while (temp_king)
     {
@@ -509,9 +532,14 @@ std::vector<Move> Board::generate_moves() const
         while (temp_attacks)
         {
             int to = pop_lsb(temp_attacks);
-            moves.push_back({from, to});
+            // Generate all king moves - legality checked later
+            if (enemy_pieces & bit(to))
+                moves.push_back(Move(from, to, CAPTURE));
+            else
+                moves.push_back({from, to});
         }
 
+        // Castling
         if (team_white)
         {
             // White kingside castling
@@ -534,18 +562,16 @@ std::vector<Move> Board::generate_moves() const
             // White queenside castling
             if (white_castle_queenside)
             {
-                // Check: king on e1, rook on a1, b1, c1, and d1 are empty
-                if ((white_kings & bit(sq(4, 0))) && // King on e1
-                    (white_rooks & bit(sq(0, 0))) && // Rook on a1
-                    !(occupied & bit(sq(1, 0))) &&   // b1 empty
-                    !(occupied & bit(sq(2, 0))) &&   // c1 empty
+                if ((white_kings & bit(sq(4, 0))) &&
+                    (white_rooks & bit(sq(0, 0))) &&
+                    !(occupied & bit(sq(1, 0))) &&
+                    !(occupied & bit(sq(2, 0))) &&
                     !(occupied & bit(sq(3, 0))))
-                { // d1 empty
-                    // King must not be in check, not pass through check, not land in check
-                    if (!is_square_attacked(sq(4, 0), false) && // e1 not attacked
-                        !is_square_attacked(sq(3, 0), false) && // d1 not attacked
+                {
+                    if (!is_square_attacked(sq(4, 0), false) &&
+                        !is_square_attacked(sq(3, 0), false) &&
                         !is_square_attacked(sq(2, 0), false))
-                    { // c1 not attacked
+                    {
                         moves.push_back(Move(sq(4, 0), sq(2, 0), CASTLE_QUEENSIDE));
                     }
                 }
@@ -553,36 +579,36 @@ std::vector<Move> Board::generate_moves() const
         }
         else
         {
-            // Black kingside castling (e8 -> g8)
+            // Black kingside castling
             if (black_castle_kingside)
             {
-                if ((black_kings & bit(sq(4, 7))) && // King on e8
-                    (black_rooks & bit(sq(7, 7))) && // Rook on h8
-                    !(occupied & bit(sq(5, 7))) &&   // f8 empty
+                if ((black_kings & bit(sq(4, 7))) &&
+                    (black_rooks & bit(sq(7, 7))) &&
+                    !(occupied & bit(sq(5, 7))) &&
                     !(occupied & bit(sq(6, 7))))
-                {                                              // g8 empty
-                    if (!is_square_attacked(sq(4, 7), true) && // e8 not attacked
-                        !is_square_attacked(sq(5, 7), true) && // f8 not attacked
+                {
+                    if (!is_square_attacked(sq(4, 7), true) &&
+                        !is_square_attacked(sq(5, 7), true) &&
                         !is_square_attacked(sq(6, 7), true))
-                    { // g8 not attacked
+                    {
                         moves.push_back(Move(sq(4, 7), sq(6, 7), CASTLE_KINGSIDE));
                     }
                 }
             }
 
-            // Black queenside castling (e8 -> c8)
+            // Black queenside castling
             if (black_castle_queenside)
             {
-                if ((black_kings & bit(sq(4, 7))) && // King on e8
-                    (black_rooks & bit(sq(0, 7))) && // Rook on a8
-                    !(occupied & bit(sq(1, 7))) &&   // b8 empty
-                    !(occupied & bit(sq(2, 7))) &&   // c8 empty
+                if ((black_kings & bit(sq(4, 7))) &&
+                    (black_rooks & bit(sq(0, 7))) &&
+                    !(occupied & bit(sq(1, 7))) &&
+                    !(occupied & bit(sq(2, 7))) &&
                     !(occupied & bit(sq(3, 7))))
-                {                                              // d8 empty
-                    if (!is_square_attacked(sq(4, 7), true) && // e8 not attacked
-                        !is_square_attacked(sq(3, 7), true) && // d8 not attacked
+                {
+                    if (!is_square_attacked(sq(4, 7), true) &&
+                        !is_square_attacked(sq(3, 7), true) &&
                         !is_square_attacked(sq(2, 7), true))
-                    { // c8 not attacked
+                    {
                         moves.push_back(Move(sq(4, 7), sq(2, 7), CASTLE_QUEENSIDE));
                     }
                 }
@@ -591,27 +617,14 @@ std::vector<Move> Board::generate_moves() const
     }
 
     // =========== PAWN MOVES ============
-    Bitboard pawns;
-    Bitboard enemy_pawns;
-    if (team_white)
-    {
-        pawns = white_pawns;
-        enemy_pawns = black_pawns;
-    }
-    else
-    {
-        pawns = black_pawns;
-        enemy_pawns = white_pawns;
-    }
-
+    Bitboard pawns = team_white ? white_pawns : black_pawns;
     Bitboard temp_pawns = pawns;
     while (temp_pawns)
     {
         int from = pop_lsb(temp_pawns);
-        // FOR PUSHES
-        Bitboard pin = pin_masks[from];
+
         if (team_white)
-        { // need to differentiate because white move from bottom to top and black from top to bottom
+        {
             int to = from + 8;
             if (to < 64 && !(occupied & bit(to)))
             {
@@ -621,8 +634,7 @@ std::vector<Move> Board::generate_moves() const
                     int to_rank = to / 8;
                     if (to_rank == 7)
                     {
-                        // Promotion quiet moves
-                        moves.push_back(Move(from, to, PROMO_QUEEN));
+                            moves.push_back(Move(from, to, PROMO_QUEEN));
                         moves.push_back(Move(from, to, PROMO_ROOK));
                         moves.push_back(Move(from, to, PROMO_BISHOP));
                         moves.push_back(Move(from, to, PROMO_KNIGHT));
@@ -630,12 +642,13 @@ std::vector<Move> Board::generate_moves() const
                     else
                     {
                         moves.push_back({from, to});
-                        // double push (only from rank 2 so index rank = 1)
-                        if (from / 8 == 1)
+                            if (from / 8 == 1)
                         {
                             int to2 = from + 16;
                             if (!(occupied & bit(to2)))
-                                moves.push_back(Move(from, to2, DOUBLE_PUSH));
+                            {
+                            moves.push_back(Move(from, to2, DOUBLE_PUSH));
+                        }
                         }
                     }
                 }
@@ -652,8 +665,7 @@ std::vector<Move> Board::generate_moves() const
                     int to_rank = to / 8;
                     if (to_rank == 0)
                     {
-                        // Promotion quiet moves
-                        moves.push_back(Move(from, to, PROMO_QUEEN));
+                            moves.push_back(Move(from, to, PROMO_QUEEN));
                         moves.push_back(Move(from, to, PROMO_ROOK));
                         moves.push_back(Move(from, to, PROMO_BISHOP));
                         moves.push_back(Move(from, to, PROMO_KNIGHT));
@@ -661,18 +673,20 @@ std::vector<Move> Board::generate_moves() const
                     else
                     {
                         moves.push_back({from, to});
-                        // double push (from rank 7)
-                        if (from / 8 == 6)
+                            if (from / 8 == 6)
                         {
                             int to2 = from - 16;
                             if (!(occupied & bit(to2)))
-                                moves.push_back(Move(from, to2, DOUBLE_PUSH));
+                            {
+                            moves.push_back(Move(from, to2, DOUBLE_PUSH));
+                        }
                         }
                     }
                 }
             }
         }
-        // ==== capture moves ====
+
+        // Capture moves
         Bitboard attacks;
         if (team_white)
         {
@@ -683,9 +697,7 @@ std::vector<Move> Board::generate_moves() const
             attacks = pawn_attacks_black[from];
         }
         Bitboard capture_targets = attacks & enemy_pieces;
-        // restrict captures if pinned
-        if (pin)
-            capture_targets &= pin;
+
         Bitboard temp_caps = capture_targets;
         while (temp_caps)
         {
@@ -696,7 +708,6 @@ std::vector<Move> Board::generate_moves() const
 
             if (promotion_rank)
             {
-                // promotion-captures
                 moves.push_back(Move(from, to, PROMO_CAPTURE_Q));
                 moves.push_back(Move(from, to, PROMO_CAPTURE_R));
                 moves.push_back(Move(from, to, PROMO_CAPTURE_B));
@@ -707,9 +718,10 @@ std::vector<Move> Board::generate_moves() const
                 moves.push_back(Move(from, to, CAPTURE));
             }
         }
-        // En passant capture
+
+        // En passant capture - simplified, legality checked later
         if (ep_square != -1)
-        { // havent added the ep_square updating yet so always -1
+        {
             Bitboard ep_attack;
             if (team_white)
             {
@@ -724,6 +736,7 @@ std::vector<Move> Board::generate_moves() const
             {
                 // allow en-passant as a pseudo-legal move; exact legality (discovered checks) will be filtered by generate_legal_moves
                 moves.push_back(Move(from, ep_square, EN_PASSANT));
+                moves.push_back(Move(from, ep_square, EN_PASSANT));
             }
         }
     }
@@ -735,15 +748,15 @@ std::vector<Move> Board::generate_moves() const
     {
         int from = pop_lsb(temp_rooks);
         Bitboard attacks = Magic::get_rook_attacks(from, occupied) & ~pieces;
-        Bitboard pin = pin_masks[from];
-        if (pin)
-            attacks &= pin;
 
         Bitboard temp_attacks = attacks;
         while (temp_attacks)
         {
             int to = pop_lsb(temp_attacks);
-            moves.push_back({from, to});
+            if (enemy_pieces & bit(to))
+                moves.push_back(Move(from, to, CAPTURE));
+            else
+                moves.push_back({from, to});
         }
     }
 
@@ -754,62 +767,111 @@ std::vector<Move> Board::generate_moves() const
     {
         int from = pop_lsb(temp_bishops);
         Bitboard attacks = Magic::get_bishop_attacks(from, occupied) & ~pieces;
-        Bitboard pin = pin_masks[from];
-        if (pin)
-            attacks &= pin;
 
         Bitboard temp_attacks = attacks;
         while (temp_attacks)
         {
             int to = pop_lsb(temp_attacks);
-            moves.push_back({from, to});
+            if (enemy_pieces & bit(to))
+                moves.push_back(Move(from, to, CAPTURE));
+            else
+                moves.push_back({from, to});
         }
-    };
+    }
 
     // =========== QUEEN MOVES ============
-    // for queen moves we just recycle bishop and rook moves
     Bitboard queens = team_white ? white_queens : black_queens;
     Bitboard temp_queens = queens;
     while (temp_queens)
     {
         int from = pop_lsb(temp_queens);
         Bitboard attacks = Magic::get_queen_attacks(from, occupied) & ~pieces;
-        Bitboard pin = pin_masks[from];
-        if (pin)
-            attacks &= pin;
 
         Bitboard temp_attacks = attacks;
         while (temp_attacks)
         {
             int to = pop_lsb(temp_attacks);
-            moves.push_back({from, to});
+            if (enemy_pieces & bit(to))
+                moves.push_back(Move(from, to, CAPTURE));
+            else
+                moves.push_back({from, to});
         }
-    };
+    }
 
     return moves;
 }
 
-// generate legal moves
-std::vector<Move> Board::generate_legal_moves() const
+// Check if a move is legal (doesn't leave king in check)
+// This was taking too long because we were always copying to be able to tests move so we implement make and unmake here that temporarly test a move and then restore the original bitboard
+// HUGE improvement in move generation optimization from 74 seconds to 36 seconds for perft depth6 
+bool Board::is_move_legal(const Move &m) const
 {
-    std::vector<Move> psuedo_legal = generate_moves();
+    // Cast away const to use make/unmake but we restore state after
+    Board* self = const_cast<Board*>(this);
+    
+    self->make_move(m);
+    
+    // After make_move team_white has flipped so need to modify king to !team_white
+    int king_square = self->find_king(!self->team_white);
+    
+    // If king not found move illegal
+    if (king_square == -1)
+    {
+        self->unmake_move(m);
+        return false;
+    }
+    
+    // Check if our king is attacked by the opponent (current team_white)
+    bool in_check = self->is_square_attacked(king_square, self->team_white);
+    
+    self->unmake_move(m);
+    
+    return !in_check;
+}
+
+// Generate only legal moves
+std::vector<Move> Board::generate_moves() const
+{
+    std::vector<Move> pseudo_legal = generate_pseudo_legal_moves();
+    std::vector<Move> legal;
+    legal.reserve(pseudo_legal.size()); // Most moves are legal
+    
+    for (const Move &m : pseudo_legal)
+    {
+        if (is_move_legal(m))
+        {
+            legal.push_back(m);
+        }
+    }
+    
+    return legal;
+}
+
+
+/*
+// OLD generate_legal_moves - replaced by new implementation above
+std::vector<Move> Board::generate_legal_moves_OLD() const
+{
+    std::vector<Move> psuedo_legal = generate_pseudo_legal_moves();
     std::vector<Move> legal;
 
     for (int i = 0; i < psuedo_legal.size(); i++)
     {
         Move m = psuedo_legal[i];
 
-        // Snapshot global bitboards before making the move on the copy.
-        // make_move mutates global bitboards in this design, so we must restore
-        // them after the legality check to avoid corrupting subsequent iterations.
         Bitboards::BoardState snap = Bitboards::snapshot_state();
         Board copy = *this;
         copy.make_move(m);
 
         int king_square = copy.find_king(!copy.team_white);
+        
+        if (king_square == -1)
+        {
+            Bitboards::restore_state(snap);
+            continue;
+        }
+        
         bool in_check = copy.is_square_attacked(king_square, copy.team_white);
-
-        // restore global bitboards so next pseudo-legal move starts from original position
         Bitboards::restore_state(snap);
 
         if (!in_check)
@@ -820,11 +882,12 @@ std::vector<Move> Board::generate_legal_moves() const
 
     return legal;
 }
+*/
 
 // for now, return a random move from all moves
 Move Board::get_random_move() const
 {
-    std::vector<Move> moves = generate_legal_moves();
+    std::vector<Move> moves = generate_moves();
 
     // for now this is a temporary output if there are no legal moves; avoids division by zero
     if (moves.empty())
@@ -1046,6 +1109,10 @@ void Board::make_move(const Move &move)
         black_rooks &= ~to_bit;
         black_queens &= ~to_bit;
         black_kings &= ~to_bit;
+        
+        // If capturing a rook on its starting square, update opponent's castling rights
+        if (to == sq(0, 7)) black_castle_queenside = false;  // a8 rook captured
+        if (to == sq(7, 7)) black_castle_kingside = false;   // h8 rook captured
     }
     else
     {
@@ -1055,6 +1122,10 @@ void Board::make_move(const Move &move)
         white_rooks &= ~to_bit;
         white_queens &= ~to_bit;
         white_kings &= ~to_bit;
+        
+        // If capturing a rook on its starting square, update opponent's castling rights
+        if (to == sq(0, 0)) white_castle_queenside = false;  // a1 rook captured
+        if (to == sq(7, 0)) white_castle_kingside = false;   // h1 rook captured
     }
 
     // move the piece (if a piece is on the square from_bit, remove it from from_bit, and put it on to_bit)
@@ -1150,6 +1221,7 @@ void Board::make_move(const Move &move)
     team_white = !team_white;
 }
 
+// Unmake move used in is_move_legal to restore the original bitboard after testing a move 
 void Board::unmake_move(const Move &move)
 {
     if (undo_stack.empty())

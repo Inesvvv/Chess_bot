@@ -29,9 +29,10 @@ class Board {
         bool is_square_attacked(int square, bool by_white) const; // checks if a square is attacked by opponent
         Board();
 
-        std::vector<Move> generate_moves() const; // returns a vector of all possible moves of our team : ONLY PSEUDO-LEGAL MOVES
-        std::vector<Move> generate_legal_moves() const; // legal move filtering
-        Move get_random_move() const; // for now, return a random move from all moves
+        std::vector<Move> generate_moves() const; // returns only LEGAL moves
+        std::vector<Move> generate_pseudo_legal_moves() const; // generates all pseudo-legal moves without legality check
+        bool is_move_legal(const Move &m) const; // checks if a move is legal (doesn't leave king in check)
+        Move get_random_move() const; // for now return a random move from all moves
 
         void make_move(const Move& move); // applies a given move to the board and updates who the current player is
         void unmake_move(const Move& move); // reverts a given move on the board and updates who the current player is
@@ -49,6 +50,7 @@ class Board {
 
         //for testing purposes
         void print_board() const;
+        
     private:
         int pop_lsb(Bitboards::Bitboard &b) const; // utilty fucntion tat iterats through all positions to find where the pieces are 
         //stores everything that changes between moves
