@@ -11,4 +11,6 @@ Week 2
 - modified the implementation of pawn in board.cpp to calculate the pawn moves 
 - created move.h to modify the move structure by adding a type field 
 - modified make_move to make en passant, double push moves 
-- created perft file to test 100% legal moves
+- created perft file to test 100% legal moves until depth7
+- We had issues with being 100% legal so fixed magic bitboards which were causing the problem as well as generate_legal_moves which was removing legal moves
+- optimized the code because for depth5 in perft it was running in more than 10 seconds which wasn't a good sign for later so optimized by: fixing magic bitboards, using bulk counting (just for depth1), implemented make/un_make instead of board copies, using a vector reserve to gain time on reallocation, maybe update the compiler with DNDEBUG but not sure thats legal so in comment for now 

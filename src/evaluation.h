@@ -4,7 +4,7 @@
 // Created: 2025-12-04
 
 
-#pragma
+#pragma once
 #include "bitboards.h"
 
 

@@ -4,6 +4,7 @@
 // Created: 2025-11-28
 
 #include "bitboards.h"
+#include "board.h"
 
 namespace Bitboards
 {
