@@ -20,3 +20,14 @@ add_executable(chesster
     src/evaluation.cpp
     src/search.cpp
 )
+target_include_directories(chesster PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/src)
+
+add_executable(victory_test
+    src/victory_regression.cpp
+    src/board.cpp
+    src/bitboards.cpp
+    src/magic.cpp
+    src/evaluation.cpp
+    src/search.cpp
+)
+target_include_directories(victory_test PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/src)
