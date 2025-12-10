@@ -12,6 +12,7 @@ set(CMAKE_CXX_EXTENSIONS OFF)
 set(CMAKE_CXX_FLAGS_RELEASE "-O3")
 set(CMAKE_BUILD_TYPE Release)
 
+# Main engine binary
 add_executable(chesster
     src/main.cpp
     src/board.cpp
@@ -20,8 +21,11 @@ add_executable(chesster
     src/evaluation.cpp
     src/search.cpp
 )
+
+# expose headers in src/ to the target
 target_include_directories(chesster PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/src)
 
+# Win-rate regression harness (engine vs baseline opponent)
 add_executable(victory_test
     src/victory_regression.cpp
     src/board.cpp
@@ -30,4 +34,5 @@ add_executable(victory_test
     src/evaluation.cpp
     src/search.cpp
 )
+# shares the same headers as the main engine
 target_include_directories(victory_test PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/src)

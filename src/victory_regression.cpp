@@ -3,7 +3,9 @@
 // Authors: Chloe Deux-Pancera, Ines Vallot, Mathis Vernier, and Apolline Weinstein
 // Created: 2025-12.09
 
-#include <chrono>
+// Purpose: to play a mini-match vs random moves to test victory rate of our engine against random player
+
+#include <chrono> // to work with time
 #include <iostream>
 #include <random>
 #include <string>
@@ -42,6 +44,7 @@ Config parse_args(int argc, char **argv) {
     return cfg;
 }
 
+// choose a random legal move to simulate the dumb opponent
 Move pick_baseline_move(const std::vector<Move> &moves, std::mt19937 &rng) {
     if (moves.empty()) {
         return Move{-1, -1, QUIET};
@@ -59,6 +62,8 @@ struct GameStats {
     double engineTimeMs = 0.0;
 };
 
+// creates a Board, loops up to maxPlies, alternates between chesster and the baseline player
+// tracks outcome, plies (= one side making a single move), and chesster think time
 GameStats play_single_game(const Config &cfg, bool enginePlaysWhite, std::mt19937 &rng) {
     Board board;
     GameStats stats;
@@ -113,6 +118,9 @@ std::string outcome_to_string(Outcome outcome) {
 
 } // namespace
 
+// run play_single_game() "games" amount of times, alternating colors each games
+// gather win/draw counts and timing
+// print summary report
 int main(int argc, char **argv) {
     Config cfg = parse_args(argc, argv);
     std::mt19937 rng(cfg.seed);
