@@ -18,10 +18,10 @@ enum MoveFlag : uint8_t {
     PROMO_ROOK       = 5,
     PROMO_BISHOP     = 6,
     PROMO_KNIGHT     = 7,
-    PROMO_CAPTURE_Q  = 8,
-    PROMO_CAPTURE_R  = 9,
-    PROMO_CAPTURE_B  = 10,
-    PROMO_CAPTURE_K  = 11,
+    PROMO_CAPTURE_Q  = 8, // Queen promotion capture
+    PROMO_CAPTURE_R  = 9, // Rook promotion capture
+    PROMO_CAPTURE_B  = 10, // Bishop promotion capture
+    PROMO_CAPTURE_K  = 11, // Knight promotion capture
     CASTLE_KINGSIDE  = 12,    
     CASTLE_QUEENSIDE = 13,
 };

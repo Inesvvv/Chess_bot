@@ -10,3 +10,6 @@ struct SearchResult
 };
 
 SearchResult find_best_move(Board &board, int maxDepth);
+
+// Clear the transposition table (call between games)
+void clear_transposition_table();
