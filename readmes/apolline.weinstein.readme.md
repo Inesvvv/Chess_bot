@@ -15,3 +15,10 @@ the data provided by the professor.
 - I redid the promotion logic for pawns
 - I fixed string_to_move as it only set from/to, but never flagged (new feature Ines added). So castling, en passant, promotions, and double push info was lost.
 - For parsing through history files and outputting moves, i was not considering output promotion notation so i fixed that.
+
+
+#Week 3: 7/12 - 13/12
+
+- LMR
+- PVS
+- opening + closing books
