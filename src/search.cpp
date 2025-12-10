@@ -508,10 +508,14 @@ int negamax(Board &board, int depth, int alpha, int beta)
         int score;
 
         // Late Move Reductions (LMR): reduce depth for quiet late moves
+        // the best move is most likely going to be at the beginning, so we dont want to
+        // waste time doing full searches everytime, thus we do an LMR search which is a
+        // more shallow search to quickly check if there could be a promising move, if a
+        // promising move is found, then you perform the full search.
         int reduction = 0;
         if (!is_capture(move) && depth >= 3 && moveIndex >= 4)
         {
-            // using the following reduction method: 1 ply for moderately late quiet moves,
+            // using the following reduction method: 1 ply for moderately late quiet moves (late --> moveIndex >=4 ),
             // 2 plies when deeper and even later in the move list
             reduction = 1;
             if (depth >= 6 && moveIndex >= 8)
@@ -520,17 +524,19 @@ int negamax(Board &board, int depth, int alpha, int beta)
 
         if (firstMove)
         {
-            // Full-window search for the first (best-ordered) move
+            //Full-window search for the first (best-ordered) move
             score = -negamax(board, depth - 1, -beta, -alpha);
         }
         else
         {
+
             if (reduction > 0)
             {
                 // Do a reduced null-window search first
                 score = -negamax(board, depth - 1 - reduction, -alpha - 1, -alpha);
 
                 // If it looks interesting, re-search at full depth
+                // must treat any score that beats alpha as “suspiciously good” and verify it at full depth even if it is greater than beta
                 if (score > alpha)
                 {
                     score = -negamax(board, depth - 1, -beta, -alpha);
@@ -539,9 +545,11 @@ int negamax(Board &board, int depth, int alpha, int beta)
             else
             {
                 // Principal Variation Search (PVS): null-window probe
+                // idea: the first move (with good move ordering) is probably the best move.
+                // do a cheap test search with a very narrow window [alpha, alpha+1] for later moves
                 score = -negamax(board, depth - 1, -alpha - 1, -alpha);
-
-                // If it possibly improves alpha, re-search with full window
+                // If it possibly improves alpha (it is a good candidate move), do a proper with full window [alpha, beta]
+                // We don’t re-search if score >= beta, because we already know it’s good enough to cause a cutoff
                 if (score > alpha && score < beta)
                 {
                     score = -negamax(board, depth - 1, -beta, -alpha);
@@ -571,7 +579,9 @@ int negamax(Board &board, int depth, int alpha, int beta)
             return bestScore;
         }
 
+        //once we've searched the first move, we are no longer on the 1st move
         firstMove = false;
+        // move to the next move
         ++moveIndex;
     }
 
