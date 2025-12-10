@@ -9,7 +9,7 @@
 
 namespace Evaluation {
 
-
+// counts each piece type for both sides, applies standard piece values, adds a bishop pair bonus if a side has two bishops
 int evaluate_material(Bitboards::Bitboard white_pawns, Bitboards::Bitboard white_knights,
                      Bitboards::Bitboard white_bishops, Bitboards::Bitboard white_rooks,
                      Bitboards::Bitboard white_queens,
@@ -44,7 +44,8 @@ int evaluate_material(Bitboards::Bitboard white_pawns, Bitboards::Bitboard white
     return score;
 }
 
-
+// uses piece square tables to give positional bonuses/penalties based on where pieces are located
+// flips the tables for black pieces and switches the king tables in the endgame
 int evaluate_piece_square_tables(Bitboards::Bitboard white_pawns, Bitboards::Bitboard white_knights,
                                  Bitboards::Bitboard white_bishops, Bitboards::Bitboard white_rooks,
                                  Bitboards::Bitboard white_queens, Bitboards::Bitboard white_kings,
@@ -87,7 +88,7 @@ int evaluate_piece_square_tables(Bitboards::Bitboard white_pawns, Bitboards::Bit
     return score;
 }
 
-
+// looks at pawn features such as passed pawns, isolated pawns, and doubled pawns
 int evaluate_pawn_structure(Bitboards::Bitboard white_pawns, Bitboards::Bitboard black_pawns,
                            Bitboards::Bitboard occupied)
 {
@@ -150,7 +151,7 @@ int evaluate_pawn_structure(Bitboards::Bitboard white_pawns, Bitboards::Bitboard
     return score;
 }
 
-
+//focused on rooks, bonuses for open files and semi-open files
 int evaluate_piece_activity(Bitboards::Bitboard white_rooks, Bitboards::Bitboard black_rooks,
                             Bitboards::Bitboard white_pawns, Bitboards::Bitboard black_pawns,
                             Bitboards::Bitboard occupied)
@@ -198,6 +199,162 @@ int evaluate_piece_activity(Bitboards::Bitboard white_rooks, Bitboards::Bitboard
     return score;
 }
 
+// inspects pawn-shields in front of each king, penalizes semi/open files, attack pressure, scales the result down in endgames
+int evaluate_king_safety(Bitboards::Bitboard white_kings,
+                         Bitboards::Bitboard black_kings,
+                         Bitboards::Bitboard white_pawns,
+                         Bitboards::Bitboard black_pawns,
+                         Bitboards::Bitboard white_knights,
+                         Bitboards::Bitboard black_knights,
+                         Bitboards::Bitboard white_bishops,
+                         Bitboards::Bitboard black_bishops,
+                         Bitboards::Bitboard white_rooks,
+                         Bitboards::Bitboard black_rooks,
+                         Bitboards::Bitboard white_queens,
+                         Bitboards::Bitboard black_queens,
+                         Bitboards::Bitboard occupied,
+                         bool is_endgame)
+{
+    // helper that scores one side's king (positive if well defended)
+    auto evaluate_side = [&](bool white_side) -> int {
+        Bitboards::Bitboard king_bb = white_side ? white_kings : black_kings;
+        if (king_bb == 0)
+        {
+            return 0;
+        }
+
+        // figure out which bitboards belong to the side we are evaluating
+        Bitboards::Bitboard friendly_pawns = white_side ? white_pawns : black_pawns;
+        Bitboards::Bitboard enemy_pawns = white_side ? black_pawns : white_pawns;
+        Bitboards::Bitboard enemy_knights = white_side ? black_knights : white_knights;
+        Bitboards::Bitboard enemy_bishops = white_side ? black_bishops : white_bishops;
+        Bitboards::Bitboard enemy_rooks = white_side ? black_rooks : white_rooks;
+        Bitboards::Bitboard enemy_queens = white_side ? black_queens : white_queens;
+        Bitboards::Bitboard enemy_king_bb = white_side ? black_kings : white_kings;
+
+        // locate the king square and direction it moves (forward = towards enemy)
+        int king_sq = __builtin_ctzll(king_bb);
+        int king_file = king_sq % 8;
+        int king_rank = king_sq / 8;
+        int forward = white_side ? 1 : -1;
+
+        // utility that pops the least-significant bit and returns that square index
+        auto pop_lsb = [](Bitboards::Bitboard &bb) -> int {
+            int sq = __builtin_ctzll(bb);
+            bb &= (bb - 1);
+            return sq;
+        };
+
+        // check for pawn shields directly in front of the king (same file +/- 1)
+        auto add_shield = [&](int df, int steps, int bonus) -> int {
+            int target_file = king_file + df;
+            int target_rank = king_rank + forward * steps;
+            if (target_file < 0 || target_file >= 8 || target_rank < 0 || target_rank >= 8)
+            {
+                return 0;
+            }
+            int sq = Bitboards::sq(target_file, target_rank);
+            if (friendly_pawns & Bitboards::bit(sq))
+            {
+                return bonus;
+            }
+            return -KING_SHIELD_GAP_PENALTY;
+        };
+
+        // reward intact pawn shields, penalize gaps
+        int shield_score = 0;
+        for (int df = -1; df <= 1; ++df)
+        {
+            shield_score += add_shield(df, 1, KING_SHIELD_NEAR_BONUS);
+            shield_score += add_shield(df, 2, KING_SHIELD_FAR_BONUS);
+        }
+
+        // penalize semi-open/open files near the king
+        int open_penalty = 0;
+        for (int df = -1; df <= 1; ++df)
+        {
+            int file = king_file + df;
+            if (file < 0 || file >= 8)
+            {
+                continue;
+            }
+            Bitboards::Bitboard mask = Bitboards::file_mask[file];
+            if ((mask & friendly_pawns) == 0)
+            {
+                open_penalty += KING_SEMI_OPEN_FILE_PENALTY;
+                if ((mask & enemy_pawns) == 0)
+                {
+                    open_penalty += KING_OPEN_FILE_PENALTY;
+                }
+            }
+        }
+
+        // determine squares around the king and collect all enemy attacks hitting them
+        Bitboards::Bitboard king_zone = Bitboards::king_attacks[king_sq] | Bitboards::bit(king_sq);
+        Bitboards::Bitboard enemy_attacks = 0ULL;
+
+        Bitboards::Bitboard temp = enemy_pawns;
+        while (temp)
+        {
+            int sq = pop_lsb(temp);
+            enemy_attacks |= white_side ? Bitboards::pawn_attacks_black[sq]
+                                        : Bitboards::pawn_attacks_white[sq];
+        }
+
+        temp = enemy_knights;
+        while (temp)
+        {
+            int sq = pop_lsb(temp);
+            enemy_attacks |= Bitboards::knight_attacks[sq];
+        }
+
+        temp = enemy_bishops;
+        while (temp)
+        {
+            int sq = pop_lsb(temp);
+            enemy_attacks |= Magic::get_bishop_attacks(sq, occupied);
+        }
+
+        temp = enemy_rooks;
+        while (temp)
+        {
+            int sq = pop_lsb(temp);
+            enemy_attacks |= Magic::get_rook_attacks(sq, occupied);
+        }
+
+        temp = enemy_queens;
+        while (temp)
+        {
+            int sq = pop_lsb(temp);
+            enemy_attacks |= Magic::get_queen_attacks(sq, occupied);
+        }
+
+        if (enemy_king_bb)
+        {
+            int enemy_king_sq = __builtin_ctzll(enemy_king_bb);
+            enemy_attacks |= Bitboards::king_attacks[enemy_king_sq];
+        }
+
+        // count how many king-zone squares are attacked to quantify danger
+        int attacked = popcount(enemy_attacks & king_zone);
+        int danger_penalty = attacked * KING_ZONE_ATTACK_PENALTY;
+
+        // combine shield, open-file, and attack pressure; taper in endgame
+        int side_score = shield_score - open_penalty - danger_penalty;
+        if (is_endgame)
+        {
+            side_score = side_score * KING_SAFETY_ENDGAME_SCALE / 100;
+        }
+        return side_score;
+    };
+
+    int white_score = evaluate_side(true);
+    int black_score = evaluate_side(false);
+    return white_score - black_score;
+}
+
+// main function that calls all functions above
+// decides if the position is in the endgame, adds everything up, includes tempo bonus
 int evaluate(Bitboards::Bitboard white_pawns,
              Bitboards::Bitboard white_knights,
              Bitboards::Bitboard white_bishops,
@@ -243,8 +400,17 @@ int evaluate(Bitboards::Bitboard white_pawns,
     
     // 4. Piece activity
     score += evaluate_piece_activity(white_rooks, black_rooks, white_pawns, black_pawns, occupied);
+
+    // 5. King safety
+    score += evaluate_king_safety(white_kings, black_kings,
+                                  white_pawns, black_pawns,
+                                  white_knights, black_knights,
+                                  white_bishops, black_bishops,
+                                  white_rooks, black_rooks,
+                                  white_queens, black_queens,
+                                  occupied, endgame);
     
-    // 5. Small bonus for side to move (tempo)
+    // 6. Small bonus for side to move (tempo)
     if (white_to_move) {
         score += 10;
     } else {
@@ -254,7 +420,7 @@ int evaluate(Bitboards::Bitboard white_pawns,
     return score;
 }
 
-
+// wrapper that grabs bitboards and side to move then calls evaluate()
 int evaluate_board(const Board& board)
 {
     return evaluate(Bitboards::white_pawns,
