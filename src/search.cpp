@@ -10,10 +10,23 @@
 #include <vector>
 #include <algorithm> // for std::sort
 #include <unordered_map>
-// #include <chrono> add latter for the time management part in find_best_move
+#include <chrono>
 
-// definite infinite value used later for alpja and beta
+// definite infinite value used later for alpha and beta
 static const int INF = std::numeric_limits<int>::max();
+
+// ====== TIME MANAGEMENT ========
+// Global variables to track time and abort search if needed
+static std::chrono::steady_clock::time_point search_start_time;
+static int time_limit_ms = 9500;  // 9.5 seconds (leave margin before 10s)
+static bool search_aborted = false;
+
+// Check if we've exceeded the time limit
+static bool is_time_up() {
+    auto now = std::chrono::steady_clock::now();
+    auto elapsed = std::chrono::duration_cast<std::chrono::milliseconds>(now - search_start_time).count();
+    return elapsed >= time_limit_ms;
+}
 
 // ====== TRANSPOSITION TABLE ========
 // Stores previously evaluated positions to avoid repetitive work
@@ -381,10 +394,14 @@ int quiescence(Board &board, int alpha, int beta)
 // Uses iterative deepening: search depth 1, then 2, then 3... up to maxDepth
 // Improvements:
 // 1) Better move ordering from previous iterations
-// 2) LATER !!! -> implement time management (stop when time runs out so no time out for 10sec)
+// 2) Time management - stops searching before 10 seconds
 // 3) Always have a best move ready even if search is interrupted
 SearchResult find_best_move(Board &board, int maxDepth)
 {
+    // Start the clock for time management
+    search_start_time = std::chrono::steady_clock::now();
+    search_aborted = false;
+
     std::vector<Move> moves = board.generate_moves();
 
     if (moves.empty())
@@ -395,7 +412,6 @@ SearchResult find_best_move(Board &board, int maxDepth)
         if (board.in_check())
         {
             // side to move is checkmated
-            // the 1 is to avoid returning INF which could cause issues
             score = -INF + 1;
         }
         else
@@ -413,13 +429,21 @@ SearchResult find_best_move(Board &board, int maxDepth)
     // ========= ITERATIVE DEEPENING =========
     // Search progressively deeper: depth 1, 2, 3, ... maxDepth
     // Each iteration improves move ordering for the next
+    // Stops early if time is running out
     for (int currentDepth = 1; currentDepth <= maxDepth; currentDepth++)
     {
+        // Check time before starting a new depth
+        if (is_time_up())
+        {
+            break;  // Return best move from previous completed depth
+        }
+
         int alpha = -INF;
         int beta = INF;
 
         Move iterationBestMove = moves[0];
         int iterationBestScore = -INF;
+        bool completedIteration = true;
 
         // Use best move from previous iteration for ordering
         order_moves(moves, board.team_white, bestMove);
@@ -429,6 +453,13 @@ SearchResult find_best_move(Board &board, int maxDepth)
             board.make_move(move);
             int score = -negamax(board, currentDepth - 1, -beta, -alpha);
             board.unmake_move(move);
+
+            // Check if search was aborted due to time
+            if (search_aborted)
+            {
+                completedIteration = false;
+                break;
+            }
 
             if (score > iterationBestScore)
             {
@@ -442,12 +473,21 @@ SearchResult find_best_move(Board &board, int maxDepth)
             }
         }
 
-        // Update best move/score after completing this depth
-        bestMove = iterationBestMove;
-        bestScore = iterationBestScore;
+        // Only update best move if we completed this iteration
+        if (completedIteration)
+        {
+            bestMove = iterationBestMove;
+            bestScore = iterationBestScore;
+        }
 
-        // Optional: early exit if we found a forced mate
+        // Early exit if we found a forced mate
         if (bestScore > INF - 1000 || bestScore < -INF + 1000)
+        {
+            break;
+        }
+
+        // Check time after completing a depth
+        if (is_time_up())
         {
             break;
         }
@@ -458,6 +498,26 @@ SearchResult find_best_move(Board &board, int maxDepth)
 
 int negamax(Board &board, int depth, int alpha, int beta)
 {
+    // ========= TIME CHECK =========
+    // Periodically check if we've run out of time
+    // Only check every so often to avoid overhead
+    static int node_count = 0;
+    if (++node_count >= 4096)  // Check every 4096 nodes
+    {
+        node_count = 0;
+        if (is_time_up())
+        {
+            search_aborted = true;
+            return 0;  // Return immediately, score doesn't matter
+        }
+    }
+
+    // If search was aborted, return immediately
+    if (search_aborted)
+    {
+        return 0;
+    }
+
     // At depth 0, don't just evaluate - search captures until position is quiet
     if (depth == 0)
     {
