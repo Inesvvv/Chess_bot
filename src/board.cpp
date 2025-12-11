@@ -729,7 +729,6 @@ std::vector<Move> Board::generate_pseudo_legal_moves() const
             {
                 // allow en-passant as a pseudo-legal move; exact legality (discovered checks) will be filtered by generate_legal_moves
                 moves.push_back(Move(from, ep_square, EN_PASSANT));
-                moves.push_back(Move(from, ep_square, EN_PASSANT));
             }
         }
     }
