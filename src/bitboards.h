@@ -96,6 +96,7 @@ namespace Bitboards
         bool white_castle_queenside;
         bool black_castle_kingside;
         bool black_castle_queenside;
+        int halfmove_clock;
     };
 
     BoardState snapshot_state();

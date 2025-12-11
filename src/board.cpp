@@ -5,6 +5,7 @@
 
 #include "board.h"
 #include "magic.h"
+#include "search.h"
 #include <cstdlib>
 #include <iostream>
 #include <array>
@@ -904,6 +905,7 @@ void Board::make_move(const Move &move)
     u.white_castle_queenside = white_castle_queenside;
     u.black_castle_kingside = black_castle_kingside;
     u.black_castle_queenside = black_castle_queenside;
+    u.halfmove_clock = halfmove_clock;
     undo_stack.push_back(u);
 
     int from = move.from;
@@ -914,11 +916,28 @@ void Board::make_move(const Move &move)
 
     // ==== Update make move with move types =======
     ep_square = -1; // reset en passant square by default
+    
+    // Track halfmove clock for fifty-move rule
     bool isPawn = false;
+    bool isCapture = (move.flag == CAPTURE || move.flag == EN_PASSANT ||
+                     move.flag == PROMO_CAPTURE_Q || move.flag == PROMO_CAPTURE_R ||
+                     move.flag == PROMO_CAPTURE_B || move.flag == PROMO_CAPTURE_K);
+    
     if (team_white)
         isPawn = (white_pawns & from_bit);
     else
         isPawn = (black_pawns & from_bit);
+    
+    // Reset halfmove clock on pawn move or capture
+    if (isPawn || isCapture)
+    {
+        halfmove_clock = 0;
+    }
+    else
+    {
+        halfmove_clock++;
+    }
+    
     if (move.flag == DOUBLE_PUSH)
     {
         if (team_white)
@@ -1215,6 +1234,10 @@ void Board::make_move(const Move &move)
 
     // switch teams
     team_white = !team_white;
+    
+    // Add current position hash to history for threefold repetition detection
+    // Note: We add the hash AFTER switching teams since the hash includes side to move
+    //position_history.push_back(compute_hash(*this)); uncomment this
 }
 
 // Unmake move used in is_move_legal to restore the original bitboard after testing a move
@@ -1238,6 +1261,13 @@ void Board::unmake_move(const Move &move)
     white_castle_queenside = u.white_castle_queenside;
     black_castle_kingside = u.black_castle_kingside;
     black_castle_queenside = u.black_castle_queenside;
+    halfmove_clock = u.halfmove_clock;
+    
+    // Remove last position from history
+    if (!position_history.empty())
+    {
+        position_history.pop_back();
+    }
 }
 
 // uses the current board state to interpret the UCI text and set the correct flag (enpassant, capture, ...).
@@ -1400,4 +1430,153 @@ void Board::print_board() const
     std::cout << "  +-----------------+\n";
     std::cout << "    a b c d e f g h\n";
     std::cout << (team_white ? "Side to move: White\n" : "Side to move: Black\n");
+}
+
+// ============= DRAW DETECTION METHODS =============
+
+// Check for stalemate (no legal moves but not in check)
+bool Board::is_stalemate() const
+{
+    // Not a stalemate if in check
+    if (in_check())
+    {
+        return false;
+    }
+
+    // Generate all legal moves
+    std::vector<Move> moves = generate_moves();
+    
+    // Stalemate if no legal moves and not in check
+    return moves.empty();
+}
+
+// Check for insufficient material to checkmate
+bool Board::is_insufficient_material() const
+{
+    // Count pieces for both sides
+    int white_pawn_count = __builtin_popcountll(white_pawns);
+    int white_knight_count = __builtin_popcountll(white_knights);
+    int white_bishop_count = __builtin_popcountll(white_bishops);
+    int white_rook_count = __builtin_popcountll(white_rooks);
+    int white_queen_count = __builtin_popcountll(white_queens);
+    
+    int black_pawn_count = __builtin_popcountll(black_pawns);
+    int black_knight_count = __builtin_popcountll(black_knights);
+    int black_bishop_count = __builtin_popcountll(black_bishops);
+    int black_rook_count = __builtin_popcountll(black_rooks);
+    int black_queen_count = __builtin_popcountll(black_queens);
+    
+    // Any pawns, rooks, or queens means sufficient material
+    if (white_pawn_count > 0 || black_pawn_count > 0 ||
+        white_rook_count > 0 || black_rook_count > 0 ||
+        white_queen_count > 0 || black_queen_count > 0)
+    {
+        return false;
+    }
+    
+    // Total minor pieces
+    int white_minors = white_knight_count + white_bishop_count;
+    int black_minors = black_knight_count + black_bishop_count;
+    
+    // King vs King
+    if (white_minors == 0 && black_minors == 0)
+    {
+        return true;
+    }
+    
+    // King + minor vs King
+    if ((white_minors == 1 && black_minors == 0) ||
+        (white_minors == 0 && black_minors == 1))
+    {
+        return true;
+    }
+    
+    // King + Knight vs King + Knight
+    if (white_knight_count == 1 && black_knight_count == 1 &&
+        white_bishop_count == 0 && black_bishop_count == 0)
+    {
+        return true;
+    }
+    
+    // Check for same-colored bishops (K+B vs K+B on same color)
+    if (white_bishop_count == 1 && black_bishop_count == 1 &&
+        white_knight_count == 0 && black_knight_count == 0)
+    {
+        // Get the squares of both bishops
+        int white_bishop_sq = __builtin_ctzll(white_bishops);
+        int black_bishop_sq = __builtin_ctzll(black_bishops);
+        
+        // Check if they're on same colored squares
+        // A square is light if (rank + file) is even
+        int white_color = (white_bishop_sq / 8 + white_bishop_sq % 8) % 2;
+        int black_color = (black_bishop_sq / 8 + black_bishop_sq % 8) % 2;
+        
+        if (white_color == black_color)
+        {
+            return true;
+        }
+    }
+    
+    return false;
+}
+
+// Check for fifty-move rule
+bool Board::is_fifty_move_rule() const
+{
+    return halfmove_clock >= 100; // 100 half-moves = 50 full moves
+}
+
+// Check for threefold repetition
+bool Board::is_threefold_repetition() const
+{
+    if (position_history.size() < 4)
+    {
+        return false; // Need at least 4 positions for threefold
+    }
+    
+    // Get current position hash (last element)
+    uint64_t current_hash = position_history.back();
+    
+    // Count how many times this position has occurred
+    int count = 0;
+    for (size_t i = 0; i < position_history.size(); ++i)
+    {
+        if (position_history[i] == current_hash)
+        {
+            count++;
+        }
+    }
+    
+    // Threefold repetition if position occurred 3 or more times
+    return count >= 3;
+}
+
+// Main draw checking function that returns the type of draw
+Board::DrawType Board::check_draw() const
+{
+    // Check stalemate first (no legal moves but not in check)
+    if (is_stalemate())
+    {
+        return STALEMATE;
+    }
+    
+    // Check fifty-move rule
+    if (is_fifty_move_rule())
+    {
+        return FIFTY_MOVE_RULE;
+    }
+    
+    // Check threefold repetition
+    if (is_threefold_repetition())
+    {
+        return THREEFOLD_REPETITION;
+    }
+    
+    // Check insufficient material
+    if (is_insufficient_material())
+    {
+        return INSUFFICIENT_MATERIAL;
+    }
+    
+    return NOT_A_DRAW;
 }
