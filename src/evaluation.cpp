@@ -421,9 +421,10 @@ int evaluate(Bitboards::Bitboard white_pawns,
 }
 
 // wrapper that grabs bitboards and side to move then calls evaluate()
+// Returns score from the perspective of the team!!! created issue with black moves before 
 int evaluate_board(const Board& board)
 {
-    return evaluate(Bitboards::white_pawns,
+    int score = evaluate(Bitboards::white_pawns,
                    Bitboards::white_knights,
                    Bitboards::white_bishops,
                    Bitboards::white_rooks,
@@ -437,6 +438,9 @@ int evaluate_board(const Board& board)
                    Bitboards::black_kings,
                    Bitboards::occupied,
                    board.team_white);
+    
+    // evaluate() returns score from White's perspective, so we negate for Black
+    return board.team_white ? score : -score;
 }
 
 } // namespace Evaluation
