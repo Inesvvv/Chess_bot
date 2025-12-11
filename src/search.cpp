@@ -21,11 +21,26 @@ static std::chrono::steady_clock::time_point search_start_time;
 static int time_limit_ms = 9500;  // 9.5 seconds (leave margin before 10s)
 static bool search_aborted = false;
 
+// Node counter for periodic time checks (reset at start of each search)
+static int node_count = 0;
+
 // Check if we've exceeded the time limit
 static bool is_time_up() {
     auto now = std::chrono::steady_clock::now();
     auto elapsed = std::chrono::duration_cast<std::chrono::milliseconds>(now - search_start_time).count();
     return elapsed >= time_limit_ms;
+}
+
+// Check time periodically to avoid overhead when checking for time out
+static bool check_time() {
+    if (++node_count >= 2048) {  // Check every 2048 nodes
+        node_count = 0;
+        if (is_time_up()) {
+            search_aborted = true;
+            return true;
+        }
+    }
+    return search_aborted;
 }
 
 // ====== TRANSPOSITION TABLE ========
@@ -340,6 +355,11 @@ int quiescence(Board &board, int alpha, int beta);
 // a big capture happens (e.g., stopping search when queen can be taken next move)
 int quiescence(Board &board, int alpha, int beta)
 {
+    // ========= TIME CHECK =========
+    if (check_time()) {
+        return 0;  // Aborted, score doesn't matter
+    }
+
     // Stand pat: evaluate the current position
     // This is the score if we choose not to make any capture
     int stand_pat = Evaluation::evaluate_board(board);
@@ -401,6 +421,7 @@ SearchResult find_best_move(Board &board, int maxDepth)
     // Start the clock for time management
     search_start_time = std::chrono::steady_clock::now();
     search_aborted = false;
+    node_count = 0;  // Reset node counter
 
     std::vector<Move> moves = board.generate_moves();
 
@@ -499,26 +520,11 @@ SearchResult find_best_move(Board &board, int maxDepth)
 int negamax(Board &board, int depth, int alpha, int beta)
 {
     // ========= TIME CHECK =========
-    // Periodically check if we've run out of time
-    // Only check every so often to avoid overhead
-    static int node_count = 0;
-    if (++node_count >= 4096)  // Check every 4096 nodes
-    {
-        node_count = 0;
-        if (is_time_up())
-        {
-            search_aborted = true;
-            return 0;  // Return immediately, score doesn't matter
-        }
+    if (check_time()) {
+        return 0;  // Abort
     }
 
-    // If search was aborted, return immediately
-    if (search_aborted)
-    {
-        return 0;
-    }
-
-    // At depth 0, don't just evaluate - search captures until position is quiet
+    // At depth 0, don't just evaluate but search captures until position is quiet
     if (depth == 0)
     {
         return quiescence(board, alpha, beta);
