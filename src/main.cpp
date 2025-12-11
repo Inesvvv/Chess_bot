@@ -11,7 +11,7 @@
 #include <iomanip>
 
 #include "board.h"
-// #include "perft.cpp"
+//#include "perft.cpp"
 #include "search.h"
 
 // HELPER FUNCTIONS TO PASS FROM FILE TO MOVE
@@ -149,7 +149,7 @@ int main(int argc, char *argv[])
         }
     }
     
-    // Perft split runner: ./chesster split 4
+    //Perft split runner: ./chesster split 4
     // if (argc >= 3 && std::string(argv[1]) == "split")
     // {
     //     int depth = std::stoi(argv[2]);
@@ -244,72 +244,72 @@ int main(int argc, char *argv[])
         out << next_move_str << '\n';
     }
 
-//     // // ======== TESTING PERFT ===========
-//     // std::cout << "════════════════════════════════════════════\n";
-//     // std::cout << "        Chesster — PERFT Test Suite\n";
-//     // std::cout << "════════════════════════════════════════════\n\n";
+    // // ======== TESTING PERFT ===========
+    // std::cout << "════════════════════════════════════════════\n";
+    // std::cout << "        Chesster — PERFT Test Suite\n";
+    // std::cout << "════════════════════════════════════════════\n\n";
 
-//     // RUN_TEST(perft_depth1);
-//     // RUN_TEST(perft_depth2);
-//     // RUN_TEST(perft_depth3);
-//     // RUN_TEST(perft_depth4);
-//     // RUN_TEST(perft_depth5);
-//     // RUN_TEST(perft_depth6);
-//     // //RUN_TEST(perft_depth7);  // DO NOT UNCOMMENT - TEST 7 passes but its way too long so we still have optimization to do 
+    // RUN_TEST(perft_depth1);
+    // RUN_TEST(perft_depth2);
+    // RUN_TEST(perft_depth3);
+    // RUN_TEST(perft_depth4);
+    // RUN_TEST(perft_depth5);
+    // RUN_TEST(perft_depth6);
+    // //RUN_TEST(perft_depth7);  // DO NOT UNCOMMENT - TEST 7 passes but its way too long so we still have optimization to do 
 
-//     // // ======== TESTING FEATURES ===========
-//     // std::cout << "\n════════════════════════════════════════════\n";
-//     // std::cout << "     Feature Validation Matrix\n";
-//     // std::cout << "════════════════════════════════════════════\n\n";
+    // // ======== TESTING FEATURES ===========
+    // std::cout << "\n════════════════════════════════════════════\n";
+    // std::cout << "     Feature Validation Matrix\n";
+    // std::cout << "════════════════════════════════════════════\n\n";
     
-//     // struct FeatureTest { std::string name; void (*test)(); };
-//     // FeatureTest features[] = {
-//     //     {"Pawn moves", test_feature_pawn_moves},
-//     //     {"Pawn double push", test_feature_pawn_double_push},
-//     //     {"Pawn captures", test_feature_pawn_captures},
-//     //     {"En passant", test_feature_en_passant},
-//     //     {"Promotions", test_feature_promotions},
-//     //     {"Knight moves", test_feature_knight_moves},
-//     //     {"Bishop moves", test_feature_bishop_moves},
-//     //     {"Rook moves", test_feature_rook_moves},
-//     //     {"Queen moves", test_feature_queen_moves},
-//     //     {"King moves", test_feature_king_moves},
-//     //     {"Castling", test_feature_castling},
-//     //     {"Check detection", test_feature_check_detection},
-//     //     {"Pin detection", test_feature_pin_detection},
-//     //     {"Legal move filtering", test_feature_legal_move_filtering},
-//     //     {"Board state tracking", test_feature_board_state_tracking},
-//     //     {"Move parsing", test_feature_move_parsing}
-//     // };
+    // struct FeatureTest { std::string name; void (*test)(); };
+    // FeatureTest features[] = {
+    //     {"Pawn moves", test_feature_pawn_moves},
+    //     {"Pawn double push", test_feature_pawn_double_push},
+    //     {"Pawn captures", test_feature_pawn_captures},
+    //     {"En passant", test_feature_en_passant},
+    //     {"Promotions", test_feature_promotions},
+    //     {"Knight moves", test_feature_knight_moves},
+    //     {"Bishop moves", test_feature_bishop_moves},
+    //     {"Rook moves", test_feature_rook_moves},
+    //     {"Queen moves", test_feature_queen_moves},
+    //     {"King moves", test_feature_king_moves},
+    //     {"Castling", test_feature_castling},
+    //     {"Check detection", test_feature_check_detection},
+    //     {"Pin detection", test_feature_pin_detection},
+    //     {"Legal move filtering", test_feature_legal_move_filtering},
+    //     {"Board state tracking", test_feature_board_state_tracking},
+    //     {"Move parsing", test_feature_move_parsing}
+    // };
     
-//     // // Display header
-//     // std::cout << "| Feature                  | Status     |\n";
-//     // std::cout << "|--------------------------|------------|\n";
+    // // Display header
+    // std::cout << "| Feature                  | Status     |\n";
+    // std::cout << "|--------------------------|------------|\n";
     
-//     // int feature_passed = 0;
-//     // int feature_total = sizeof(features) / sizeof(features[0]);
+    // int feature_passed = 0;
+    // int feature_total = sizeof(features) / sizeof(features[0]);
     
-//     // for (const auto &f : features) {
-//     //     try {
-//     //         f.test();
-//     //         std::cout << "| " << std::setw(24) << std::left << f.name << " | ✓ PASS     |\n";
-//     //         feature_passed++;
-//     //     } catch (const std::exception &e) {
-//     //         std::cout << "| " << std::setw(24) << std::left << f.name << " | ✗ FAIL     |\n";
-//     //     }
-//     // }
+    // for (const auto &f : features) {
+    //     try {
+    //         f.test();
+    //         std::cout << "| " << std::setw(24) << std::left << f.name << " | ✓ PASS     |\n";
+    //         feature_passed++;
+    //     } catch (const std::exception &e) {
+    //         std::cout << "| " << std::setw(24) << std::left << f.name << " | ✗ FAIL     |\n";
+    //     }
+    // }
     
-//     // std::cout << "|--------------------------|------------|\n";
+    // std::cout << "|--------------------------|------------|\n";
 
-//     // std::cout << "\n════════════════════════════════════════════\n";
-//     // std::cout << " Test Summary\n";
-//     // std::cout << "════════════════════════════════════════════\n";
-//     // std::cout << " PERFT Tests Passed: " << tests_passed << "/4\n";
-//     // std::cout << " Feature Tests Passed: " << feature_passed << "/" << feature_total << "\n";
-//     // std::cout << " Total Passed: " << (tests_passed + feature_passed) << "/" << (4 + feature_total) << "\n";
-//     // std::cout << "════════════════════════════════════════════\n";
+    // std::cout << "\n════════════════════════════════════════════\n";
+    // std::cout << " Test Summary\n";
+    // std::cout << "════════════════════════════════════════════\n";
+    // std::cout << " PERFT Tests Passed: " << tests_passed << "/4\n";
+    // std::cout << " Feature Tests Passed: " << feature_passed << "/" << feature_total << "\n";
+    // std::cout << " Total Passed: " << (tests_passed + feature_passed) << "/" << (4 + feature_total) << "\n";
+    // std::cout << "════════════════════════════════════════════\n";
 
-//     // return (tests_failed == 0 && feature_passed == feature_total) ? 0 : 1;
+    // return (tests_failed == 0 && feature_passed == feature_total) ? 0 : 1;
 
-//     //return 0;
+    return 0;
 }
