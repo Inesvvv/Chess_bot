@@ -26,6 +26,8 @@ class Board {
         bool white_castle_queenside = true;
         bool black_castle_kingside = true;
         bool black_castle_queenside = true;
+        int halfmove_clock = 0; // for fifty-move rule (resets on pawn move or capture)
+        std::vector<uint64_t> position_history; // for threefold repetition detection
         bool is_square_attacked(int square, bool by_white) const; // checks if a square is attacked by opponent
         Board();
 
@@ -48,8 +50,26 @@ class Board {
 
         Move parse_uci_move(const std::string &uci) const;
 
+        // Draw detection methods
+        bool is_stalemate() const; // checks if position is stalemate
+        bool is_insufficient_material() const; // checks if there's insufficient material to mate
+        bool is_fifty_move_rule() const; // checks if fifty-move rule applies
+        bool is_threefold_repetition() const; // checks for threefold repetition
+        
+
         //for testing purposes
         void print_board() const;
+
+                
+        enum DrawType {
+            NOT_A_DRAW = 0,
+            STALEMATE,
+            INSUFFICIENT_MATERIAL,
+            FIFTY_MOVE_RULE,
+            THREEFOLD_REPETITION
+        };
+
+        DrawType check_draw() const; // returns the type of draw, or NOT_A_DRAW
         
     private:
         int pop_lsb(Bitboards::Bitboard &b) const; // utilty fucntion tat iterats through all positions to find where the pieces are 
@@ -62,9 +82,9 @@ class Board {
             bool white_castle_queenside;
             bool black_castle_kingside;
             bool black_castle_queenside;
+            int halfmove_clock;
         };
 
         std::vector<UndoState> undo_stack;
 
     };
-
