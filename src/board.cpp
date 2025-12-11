@@ -1236,7 +1236,7 @@ void Board::make_move(const Move &move)
     
     // Add current position hash to history for threefold repetition detection
     // Note: We add the hash AFTER switching teams since the hash includes side to move
-    //position_history.push_back(compute_hash(*this)); uncomment this
+    position_history.push_back(compute_hash(*this)); 
 }
 
 // Unmake move used in is_move_legal to restore the original bitboard after testing a move

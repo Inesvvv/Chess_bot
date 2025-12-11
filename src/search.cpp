@@ -112,7 +112,7 @@ static void init_zobrist()
 }
 
 // Compute hash for current position
-static uint64_t compute_hash(const Board &board)
+uint64_t compute_hash(const Board &board)
 {
     init_zobrist();
     uint64_t hash = 0;
@@ -355,6 +355,12 @@ int quiescence(Board &board, int alpha, int beta);
 // a big capture happens (e.g., stopping search when queen can be taken next move)
 int quiescence(Board &board, int alpha, int beta)
 {
+    // Check for draws first
+    Board::DrawType draw_type = board.check_draw();
+    if (draw_type != Board::NOT_A_DRAW)
+    {
+        return 0; // All draws return 0 score
+    }
     // ========= TIME CHECK =========
     if (check_time()) {
         return 0;  // Aborted, score doesn't matter
@@ -522,6 +528,15 @@ int negamax(Board &board, int depth, int alpha, int beta)
     // ========= TIME CHECK =========
     if (check_time()) {
         return 0;  // Abort
+    }
+
+    // ========= DRAW DETECTION =========
+    // Check for draws before searching deeper
+    // Draws are evaluated as 0 (equal position)
+    Board::DrawType draw_type = board.check_draw();
+    if (draw_type != Board::NOT_A_DRAW)
+    {
+        return 0; // All draws return 0 score
     }
 
     // At depth 0, don't just evaluate but search captures until position is quiet
