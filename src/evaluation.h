@@ -107,14 +107,19 @@ namespace Evaluation {
     const int ISOLATED_PAWN_PENALTY = -10; //for isolated pawn
     const int DOUBLED_PAWN_PENALTY = -15;
     const int MOBILITY_BONUS = 5;  // per legal move in middlegame
+    const int KING_SHIELD_NEAR_BONUS = 12;   // pawn directly in front of king
+    const int KING_SHIELD_FAR_BONUS = 6;     // pawn two ranks ahead of king
+    const int KING_SHIELD_GAP_PENALTY = 8;   // missing pawn in the shield
+    const int KING_SEMI_OPEN_FILE_PENALTY = 12; // king near semi-open file
+    const int KING_OPEN_FILE_PENALTY = 6;    // additional penalty if fully open
+    const int KING_ZONE_ATTACK_PENALTY = 10; // per enemy attack in king zone
+    const int KING_SAFETY_ENDGAME_SCALE = 60; // percent of king safety kept in endgame
     
 
     // flip square index for black's perspective
     inline int flip_square(int square) {
     return square ^ 56;  // flip rank
     }
-
-
 
     // Get piece-square table value
     inline int get_pst_value(const int* table, int square, bool is_white) {
@@ -136,8 +141,6 @@ namespace Evaluation {
         return __builtin_popcountll(b);
     }
 
-
-
     //evaluate the current position from white's perspective
     // Positive = good for white, Negative = good for black
     int evaluate(Bitboards::Bitboard white_pawns,
@@ -156,30 +159,49 @@ namespace Evaluation {
                 bool white_to_move);
 
     //evaluate from the current board state
-int evaluate_board(const class Board& board);
+    int evaluate_board(const class Board& board);
 
-//individual evaluation components 
-int evaluate_material(Bitboards::Bitboard white_pawns, Bitboards::Bitboard white_knights,
-                     Bitboards::Bitboard white_bishops, Bitboards::Bitboard white_rooks,
-                     Bitboards::Bitboard white_queens,
-                     Bitboards::Bitboard black_pawns, Bitboards::Bitboard black_knights,
-                     Bitboards::Bitboard black_bishops, Bitboards::Bitboard black_rooks,
-                     Bitboards::Bitboard black_queens);
+    //individual evaluation components 
+    int evaluate_material(Bitboards::Bitboard white_pawns, Bitboards::Bitboard white_knights,
+                        Bitboards::Bitboard white_bishops, Bitboards::Bitboard white_rooks,
+                        Bitboards::Bitboard white_queens,
+                        Bitboards::Bitboard black_pawns, Bitboards::Bitboard black_knights,
+                        Bitboards::Bitboard black_bishops, Bitboards::Bitboard black_rooks,
+                        Bitboards::Bitboard black_queens);
 
-int evaluate_piece_square_tables(Bitboards::Bitboard white_pawns, Bitboards::Bitboard white_knights,
-                                 Bitboards::Bitboard white_bishops, Bitboards::Bitboard white_rooks,
-                                 Bitboards::Bitboard white_queens, Bitboards::Bitboard white_kings,
-                                 Bitboards::Bitboard black_pawns, Bitboards::Bitboard black_knights,
-                                 Bitboards::Bitboard black_bishops, Bitboards::Bitboard black_rooks,
-                                 Bitboards::Bitboard black_queens, Bitboards::Bitboard black_kings,
-                                 bool is_endgame);
+    // uses piece square tables to give positional bonuses/penalties based on where pieces are located
+    int evaluate_piece_square_tables(Bitboards::Bitboard white_pawns, Bitboards::Bitboard white_knights,
+                                    Bitboards::Bitboard white_bishops, Bitboards::Bitboard white_rooks,
+                                    Bitboards::Bitboard white_queens, Bitboards::Bitboard white_kings,
+                                    Bitboards::Bitboard black_pawns, Bitboards::Bitboard black_knights,
+                                    Bitboards::Bitboard black_bishops, Bitboards::Bitboard black_rooks,
+                                    Bitboards::Bitboard black_queens, Bitboards::Bitboard black_kings,
+                                    bool is_endgame);
 
-int evaluate_pawn_structure(Bitboards::Bitboard white_pawns, Bitboards::Bitboard black_pawns,
-                           Bitboards::Bitboard occupied);
-
-int evaluate_piece_activity(Bitboards::Bitboard white_rooks, Bitboards::Bitboard black_rooks,
-                            Bitboards::Bitboard white_pawns, Bitboards::Bitboard black_pawns,
+    // looks at pawn features such as passed pawns, isolated pawns, doubled pawns
+    int evaluate_pawn_structure(Bitboards::Bitboard white_pawns, Bitboards::Bitboard black_pawns,
                             Bitboards::Bitboard occupied);
+
+    // focused on rooks, bonuses for open files and semi-open files
+    int evaluate_piece_activity(Bitboards::Bitboard white_rooks, Bitboards::Bitboard black_rooks,
+                                Bitboards::Bitboard white_pawns, Bitboards::Bitboard black_pawns,
+                                Bitboards::Bitboard occupied);
+
+    // inspects pawn-shields in front of each king, penalizes semi/open files, attack pressure, scales the result down in endgames
+    int evaluate_king_safety(Bitboards::Bitboard white_kings,
+                            Bitboards::Bitboard black_kings,
+                            Bitboards::Bitboard white_pawns,
+                            Bitboards::Bitboard black_pawns,
+                            Bitboards::Bitboard white_knights,
+                            Bitboards::Bitboard black_knights,
+                            Bitboards::Bitboard white_bishops,
+                            Bitboards::Bitboard black_bishops,
+                            Bitboards::Bitboard white_rooks,
+                            Bitboards::Bitboard black_rooks,
+                            Bitboards::Bitboard white_queens,
+                            Bitboards::Bitboard black_queens,
+                            Bitboards::Bitboard occupied,
+                            bool is_endgame);
 
 } // namespace Evaluation
 
