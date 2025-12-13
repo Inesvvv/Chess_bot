@@ -19,6 +19,9 @@ the data provided by the professor.
 
 #Week 3: 7/12 - 13/12
 
-- LMR
-- PVS
-- opening + closing books
+- I implemented Late Move Reduction (LMR) and Principal Variation Search (PVS) to optimize the code
+    - Our code works so that the best move is most likely going to be at the beginning. We don't want to waste time doing full searches everytime, thus we do a more shallow search to quickly check if there could be a promising move, if a promising move is found, then you perform the full search. 
+- Debugged the code for a while here are some examples of bugs i fixed:
+    - we were doing 50% legal moves --> this was because we were timing out. To fix this I realized we were not restoring position history in unmake_move() so while we were searching the position history was growing and slowing down the search
+    - we had a duplicate en passant move so i fixed that
+    - I also fixed a lot spacing and just visual aesthetics (that's why I randomly have 1000 insertions in my commits)
