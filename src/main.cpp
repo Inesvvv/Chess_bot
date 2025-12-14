@@ -149,52 +149,7 @@ int main(int argc, char *argv[])
         }
     }
     
-    //Perft split runner: ./chesster split 4
-    // if (argc >= 3 && std::string(argv[1]) == "split")
-    // {
-    //     int depth = std::stoi(argv[2]);
-    //     std::cout << "Perft split for depth " << depth << ":\n";
-    //     perft_split(depth);
-    //     return 0;
-    // }
 
-    //     // Debug path runner: ./chesster debugpath d2d3,e7e5,c1g5
-    //     if (argc >= 3 && std::string(argv[1]) == "debugpath")
-    //     {
-    //         std::string moves_arg = argv[2];
-    //         std::vector<std::string> moves;
-    //         size_t pos = 0;
-    //         while (pos < moves_arg.size()) {
-    //             size_t comma = moves_arg.find(',', pos);
-    //             if (comma == std::string::npos) comma = moves_arg.size();
-    //             moves.push_back(moves_arg.substr(pos, comma - pos));
-    //             pos = comma + 1;
-    //         }
-    //         Board dbg;
-    //         std::cout << "Applying debug path:";
-    //         for (auto &m : moves) std::cout << " " << m;
-    //         std::cout << "\n";
-    //         for (auto &u : moves)
-    //         {
-    //             Move mv = dbg.parse_uci_move(u);
-    //             if (mv.from < 0) { std::cerr << "Invalid move in debug path: " << u << "\n"; return 1; }
-    //             std::cout << "Applying: " << u << " flag=" << int(mv.flag) << "\n";
-    //             dbg.make_move(mv);
-    //         }
-    //         dbg.print_board();
-    //     std::cout << "ep_square = " << dbg.ep_square << "\n";
-    //         std::cout << "In check: " << (dbg.in_check() ? "YES" : "NO") << "\n";
-    //         auto legal = dbg.generate_moves();
-    //         std::cout << "Legal moves count: " << legal.size() << "\n";
-    //         for (const Move &mv : legal)
-    //         {
-    //             std::cout << mv.from << "->" << mv.to << " flag=" << int(mv.flag) << "\n";
-    //         }
-    //         return 0;
-    //     }
-
-    // store who's turn it is to move according to the number of previous moves
-    //(even is white, odd is black)
     board.team_white = (history_moves.size() % 2 == 0);
 
     // for testing purposes: print the board after the history moves have been played
