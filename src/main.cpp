@@ -216,13 +216,14 @@ int main(int argc, char *argv[])
     // }
 
     //make move using search and evaluation
-    int searchDepth = 4;
+    int searchDepth = 10;  // Search 10 plies (5 full moves) deep
     SearchResult result = find_best_move(board, searchDepth);
     Move next = result.bestMove;
     std::string next_move_str = move_to_string(next);
 
     std::cout << "Next move: " << next_move_str
-            << " (score: " << result.score << ")\n";
+            << " (score: " << result.score 
+            << ")\n";
 
     if (next_move_str.empty())
     {

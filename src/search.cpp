@@ -629,9 +629,9 @@ int negamax(Board &board, int depth, int alpha, int beta)
                 // idea: the first move (with good move ordering) is probably the best move.
                 // do a cheap test search with a very narrow window [alpha, alpha+1] for later moves
                 score = -negamax(board, depth - 1, -alpha - 1, -alpha);
-                // If it possibly improves alpha (it is a good candidate move), do a proper with full window [alpha, beta]
-                // We don’t re-search if score >= beta, because we already know it’s good enough to cause a cutoff
-                if (score > alpha && score < beta)
+                // We need to re-search if score > alpha to se if we can get an accurate score for the PV
+                // Changed here to research completly if score > alpha instead of only if score is between alpha and beta because we need to explore the promising path and the score <= beta restrained this 
+                if (score > alpha)
                 {
                     score = -negamax(board, depth - 1, -beta, -alpha);
                 }
