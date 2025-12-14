@@ -11,7 +11,7 @@
 #include <iomanip>
 
 #include "board.h"
-//#include "perft.cpp"
+
 #include "search.h"
 
 // HELPER FUNCTIONS TO PASS FROM FILE TO MOVE
@@ -26,33 +26,7 @@ std::string index_to_square(int sq)
     return std::string() + fileChar + rankChar;
 }
 
-// go from the string representing the move to an actual move
-// Move string_to_move(const std::string &line)
-// {
-//     // check if the line is valid (it had at least 4 characters)
-//     if (line.size() < 4)
-//     {
-//         return Move{-1, -1};
-//     }
 
-//     // convert from string to index
-//     auto parse_sq = [](char fileChar, char rankChar) -> int
-//     {
-//         int file = fileChar - 'a';
-//         int rank = rankChar - '1';
-//         if (file < 0 || file > 7 || rank < 0 || rank > 7)
-//         {
-//             return -1;
-//         }
-//         return rank * 8 + file;
-//     };
-
-//     int from = parse_sq(line[0], line[1]);
-//     int to = parse_sq(line[2], line[3]);
-
-//     // return a move
-//     return Move{from, to};
-// }
 
 // helper function to go from a move to a string representing the move
 std::string move_to_string(const Move &m)
@@ -156,19 +130,7 @@ int main(int argc, char *argv[])
     std::cout << "Position after history:\n";
     board.print_board();
 
-    // Choose the next move
-    // FOR NOW WE ARE IMPLEMENTING THE NEXT MOVE TO BE A RANDOM MOVE
     
-    
-    // Move next = board.get_random_move();
-    // std::string next_move_str = move_to_string(next);
-    // std::cout << "Next move: " << next_move_str << '\n';
-
-    // if (next_move_str.empty())
-    // {
-    //     std::cerr << "Did not find any legal moves.\n";
-    //     return 1;
-    // }
 
     //make move using search and evaluation
     int searchDepth = 10;  // Search 10 plies (5 full moves) deep
