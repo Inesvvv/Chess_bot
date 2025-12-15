@@ -355,12 +355,13 @@ int quiescence(Board &board, int alpha, int beta);
 // a big capture happens (e.g., stopping search when queen can be taken next move)
 int quiescence(Board &board, int alpha, int beta)
 {
+    // Skip draw detection in quiescence - too expensive and captures rarely lead to draws
     // Check for draws first
-    Board::DrawType draw_type = board.check_draw();
-    if (draw_type != Board::NOT_A_DRAW)
-    {
-        return 0; // All draws return 0 score
-    }
+    // Board::DrawType draw_type = board.check_draw();
+    // if (draw_type != Board::NOT_A_DRAW)
+    // {
+    //     return 0; // All draws return 0 score
+    // }
     // ========= TIME CHECK =========
     if (check_time()) {
         return 0;  // Aborted, score doesn't matter
@@ -629,10 +630,9 @@ int negamax(Board &board, int depth, int alpha, int beta)
                 // idea: the first move (with good move ordering) is probably the best move.
                 // do a cheap test search with a very narrow window [alpha, alpha+1] for later moves
                 score = -negamax(board, depth - 1, -alpha - 1, -alpha);
-                // We need to re-search if score > alpha to se if we can get an accurate score for the PV
-                // Changed here to research completly if score > alpha instead of only if score is between alpha and beta because we need to explore the promising path and the score <= beta restrained this 
-                if (score > alpha)
-                {
+                // If it possibly improves alpha (it is a good candidate move), do a proper with full window [alpha, beta]
+                // We don’t re-search if score >= beta, because we already know it’s good enough to cause a cutoff
+                if (score > alpha && score < beta){
                     score = -negamax(board, depth - 1, -beta, -alpha);
                 }
             }
