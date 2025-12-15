@@ -450,7 +450,7 @@ SearchResult find_best_move(Board &board, int maxDepth)
 
         return SearchResult(dummyMove, score);
     }
-
+    
     Move bestMove = moves[0];
     int bestScore = -INF;
 
@@ -469,12 +469,13 @@ SearchResult find_best_move(Board &board, int maxDepth)
         int alpha = -INF;
         int beta = INF;
 
-        Move iterationBestMove = moves[0];
+        
         int iterationBestScore = -INF;
         bool completedIteration = true;
 
         // Use best move from previous iteration for ordering
         order_moves(moves, board.team_white, bestMove);
+        Move iterationBestMove = moves[0];
 
         for (const Move &move : moves)
         {
