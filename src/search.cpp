@@ -87,6 +87,51 @@ static int get_killer_slot(const Move& move, int ply) {
     return 0;
 }
 
+// ====== HISTORY HEURISTIC ========
+// History heuristic tracks how often each move causes beta cutoffs across the entire search.
+// Unlike killer moves which are ply-specific, history is accumulates over the search.
+// Indexed by [from_square][to_square] - rewards moves that consistently cause cutoffs.
+static int history_table[64][64];
+
+// Maximum history score to prevent overflow and keep scores bounded
+static const int MAX_HISTORY = 6000;
+
+// Clear history table (call at start of each search)
+static void clear_history() {
+    for (int from = 0; from < 64; from++) {
+        for (int to = 0; to < 64; to++) {
+            history_table[from][to] = 0;
+        }
+    }
+}
+
+// Update history score for a move that caused beta cutoff
+// Bonus is depth^2 - deeper cutoffs are more valuable
+static void update_history(const Move& move, int depth) {
+    // Only store quiet moves (captures already ordered by MVV-LVA)
+    if (move.flag == CAPTURE || move.flag == EN_PASSANT ||
+        (move.flag >= PROMO_CAPTURE_Q && move.flag <= PROMO_CAPTURE_K)) {
+        return;
+    }
+    
+    if (move.from < 0 || move.from >= 64 || move.to < 0 || move.to >= 64) return;
+    
+    // Add depth^2 bonus 
+    int bonus = depth * depth;
+    history_table[move.from][move.to] += bonus;
+    
+    // Cap at MAX_HISTORY to prevent overflow
+    if (history_table[move.from][move.to] > MAX_HISTORY) {
+        history_table[move.from][move.to] = MAX_HISTORY;
+    }
+}
+
+// Get history score for a move
+static int get_history_score(const Move& move) {
+    if (move.from < 0 || move.from >= 64 || move.to < 0 || move.to >= 64) return 0;
+    return history_table[move.from][move.to];
+}
+
 // Check if we've exceeded the time limit
 static bool is_time_up() {
     auto now = std::chrono::steady_clock::now();
@@ -387,6 +432,11 @@ static int score_move(const Move &move, bool white_to_move, int ply = -1)
         } else if (killer_slot == 2) {
             score += 7000;  // Second killer
         }
+        // History heuristic: add accumulated score for quiet moves
+        // Scored below killers (max 6000) but helps order remaining quiet moves
+        else {
+            score += get_history_score(move);
+        }
     }
 
     // Castling is usually good but not as good as captures and promotions
@@ -510,6 +560,7 @@ SearchResult find_best_move(Board &board, int maxDepth)
     search_aborted = false;
     node_count = 0;  // Reset node counter
     clear_killers();  // Reset killer moves for new search
+    clear_history();  // Reset history table for new search
 
     std::vector<Move> moves = board.generate_moves();
 
@@ -739,6 +790,8 @@ int negamax(Board &board, int depth, int alpha, int beta, int ply)
             ttFlag = TT_BETA; // Failed high (cut node)
             // Store killer move: quiet move that caused beta cutoff
             store_killer(move, ply);
+            // Update history: reward this move for causing cutoff
+            update_history(move, depth);
             // store cutoff info in TT and break
             store_tt(hash, depth, bestScore, ttFlag, bestMove);
             return bestScore;

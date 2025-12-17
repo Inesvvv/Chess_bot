@@ -19,3 +19,6 @@ Week 3
 - worked on search file implementing transposition tables to avoid recalculating the evaluation of the same position multiple times, for that used the zobrist hashing method to create the table keys, modified the move ordering to put the best move sfirst (promotion, capture then quiet) first in case of timing out to still have one of the best moves
 - implemented time check in the search to return the current best move in case of timing out 
 - we noticed that are black team was always playing the worst move because we had forgotten to return the negative score evaluation when we were the black team so modified that part too 
+
+Week 4 
+- worked on increasing efficiency of alpha beta pruning by specifically looking at improving for quiet moves by implementing killer moves and history moves
