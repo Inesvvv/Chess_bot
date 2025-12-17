@@ -56,11 +56,12 @@ int evaluate_piece_square_tables(Bitboards::Bitboard white_pawns, Bitboards::Bit
 {
     int score = 0;
     
-    // Helper to evaluate a piece type
+    // helper to evaluate a piece type
+    // sums up positional bonuses/penalties for all pieces of a given type, using piece-square table
     auto eval_pieces = [&](Bitboards::Bitboard pieces, const int* table, bool is_white, int multiplier) {
         Bitboards::Bitboard temp = pieces;
         while (temp) {
-            int sq = __builtin_ctzll(temp);
+            int sq = __builtin_ctzll(temp); // find the index (0-63) of the least significant bit that is set to 1 in the 64-bit integer temp
             temp &= temp - 1;
             score += multiplier * get_pst_value(table, sq, is_white);
         }
@@ -73,7 +74,7 @@ int evaluate_piece_square_tables(Bitboards::Bitboard white_pawns, Bitboards::Bit
     eval_pieces(white_rooks, ROOK_TABLE, true, 1);
     eval_pieces(white_queens, QUEEN_TABLE, true, 1);
     
-    // King - choose table based on game phase
+    // King: choose table based on game phase (middlegame when must keep safe or endgame when must be active)
     const int* king_table = is_endgame ? KING_ENDGAME_TABLE : KING_MIDDLEGAME_TABLE;
     eval_pieces(white_kings, king_table, true, 1);
     
@@ -364,7 +365,6 @@ int evaluate_king_safety(Bitboards::Bitboard white_kings,
 
 
 //mobility penalties (trapped pieces)
-
 int count_piece_mobility(int square, 
                         Bitboards::Bitboard friendly_pieces,
                         Bitboards::Bitboard enemy_pieces,

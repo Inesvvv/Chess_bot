@@ -6,7 +6,7 @@
 #pragma once
 #include <cstdint>
 
-// === Move Flags ===
+// Move Flags
 // Flags tell us the type of the move
 // Quiet = 0 means normal move (no capture, no promo, no special)
 enum MoveFlag : uint8_t {
@@ -31,6 +31,7 @@ struct Move {
     int from;
     int to;
     MoveFlag flag;
+    
     // constructor where flag is QUIET by default so here Move(from,to) is valid because the QUIET is implicit
     Move(int f, int t, MoveFlag fl = QUIET)
         : from(f), to(t), flag(fl) {}
