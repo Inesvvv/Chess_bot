@@ -24,6 +24,69 @@ static bool search_aborted = false;
 // Node counter for periodic time checks (reset at start of each search)
 static int node_count = 0;
 
+// ====== KILLER MOVES ========
+// Killer moves are quiet moves that caused a beta cutoff at a given ply.
+// We store 2 killer moves per ply (depth) - cant do more because going to take too much time. 
+// In move ordering killer moves are right after captures, as they're going to be good in sibling nodes.
+static const int MAX_PLY = 64;  // Maximum search depth - 64 is standard for chess engine but maybe review later 
+static const int NUM_KILLERS = 2;  // Store 2 killer moves per ply
+
+// Killer move struct: from, to, flag for each killer
+struct KillerEntry {
+    int from = -1;
+    int to = -1;
+    MoveFlag flag = QUIET;
+};
+static KillerEntry killer_moves[MAX_PLY][NUM_KILLERS];  // [ply][slot]
+
+// Clear killer moves table (call at start of each search)
+static void clear_killers() {
+    for (int ply = 0; ply < MAX_PLY; ply++) {
+        for (int slot = 0; slot < NUM_KILLERS; slot++) {
+            killer_moves[ply][slot] = {-1, -1, QUIET};
+        }
+    }
+}
+
+// Store a killer move (quiet move that caused beta cutoff)
+static void store_killer(const Move& move, int ply) {
+    // Don't store captures as killers (they're already ordered by MVV-LVA)
+    if (move.flag == CAPTURE || move.flag == EN_PASSANT ||
+        (move.flag >= PROMO_CAPTURE_Q && move.flag <= PROMO_CAPTURE_K)) {
+        return;
+    }
+    
+    if (ply < 0 || ply >= MAX_PLY) return;
+    
+    // Don't store if it's already the first killer
+    if (killer_moves[ply][0].from == move.from &&
+        killer_moves[ply][0].to == move.to &&
+        killer_moves[ply][0].flag == move.flag) {
+        return;
+    }
+    
+    // Shift: move first killer to second slot, store new killer in first
+    killer_moves[ply][1] = killer_moves[ply][0];
+    killer_moves[ply][0] = {move.from, move.to, move.flag};
+}
+
+// Check if a move is a killer at the given ply (returns 1 for first killer, 2 for second, 0 otherwise)
+static int get_killer_slot(const Move& move, int ply) {
+    if (ply < 0 || ply >= MAX_PLY) return 0;
+    
+    if (killer_moves[ply][0].from == move.from &&
+        killer_moves[ply][0].to == move.to &&
+        killer_moves[ply][0].flag == move.flag) {
+        return 1;  // First killer
+    }
+    if (killer_moves[ply][1].from == move.from &&
+        killer_moves[ply][1].to == move.to &&
+        killer_moves[ply][1].flag == move.flag) {
+        return 2;  // Second killer
+    }
+    return 0;
+}
+
 // Check if we've exceeded the time limit
 static bool is_time_up() {
     auto now = std::chrono::steady_clock::now();
@@ -272,7 +335,8 @@ static int get_piece_on_square(int sq, bool for_white)
 }
 
 // Score a move for ordering (higher = search first)
-static int score_move(const Move &move, bool white_to_move)
+// Added ply parameter, used to check killer moves at the current depth
+static int score_move(const Move &move, bool white_to_move, int ply = -1)
 {
     int score = 0;
 
@@ -310,6 +374,20 @@ static int score_move(const Move &move, bool white_to_move)
         // MVV-LVA: prioritize capturing high-value pieces with low-value pieces
         score += 10000 + MVV_LVA_VICTIM_SCORES[victim_type] * 10 - MVV_LVA_ATTACKER_SCORES[attacker_type];
     }
+    // Killer moves: quiet moves that caused beta cutoff at this ply
+    // Scored below captures but above other quiet moves
+    // first killer = most recent beta cutoff move
+    // second killer = second most recent beta cutoff move
+    // --> having two increases the coverage of good quiet moves
+    else if (ply >= 0)
+    {
+        int killer_slot = get_killer_slot(move, ply);
+        if (killer_slot == 1) {
+            score += 8000;  // First killer
+        } else if (killer_slot == 2) {
+            score += 7000;  // Second killer
+        }
+    }
 
     // Castling is usually good but not as good as captures and promotions
     if (move.flag == CASTLE_KINGSIDE || move.flag == CASTLE_QUEENSIDE)
@@ -323,9 +401,10 @@ static int score_move(const Move &move, bool white_to_move)
 // ========= SORT MOVES =========
 // Sort moves for better alpha-beta pruning, moves with higher scores come first
 // ttMove is the best move from transposition table (searched first if valid)
-static void order_moves(std::vector<Move> &moves, bool white_to_move, const Move &ttMove = Move(-1, -1, QUIET))
+// ply is used to check killer moves at the current depth
+static void order_moves(std::vector<Move> &moves, bool white_to_move, const Move &ttMove = Move(-1, -1, QUIET), int ply = -1)
 {
-    std::sort(moves.begin(), moves.end(), [white_to_move, &ttMove](const Move &a, const Move &b)
+    std::sort(moves.begin(), moves.end(), [white_to_move, &ttMove, ply](const Move &a, const Move &b)
               {
         // always check TT move first
         bool a_is_tt = (a.from == ttMove.from && a.to == ttMove.to && a.flag == ttMove.flag);
@@ -333,7 +412,7 @@ static void order_moves(std::vector<Move> &moves, bool white_to_move, const Move
         if (a_is_tt) return true;
         if (b_is_tt) return false;
         
-        return score_move(a, white_to_move) > score_move(b, white_to_move); });
+        return score_move(a, white_to_move, ply) > score_move(b, white_to_move, ply); });
 }
 
 // ========= CAPTURE DETECTION =========
@@ -346,7 +425,8 @@ static bool is_capture(const Move &move)
 }
 
 // Forward declarations
-int negamax(Board &board, int depth, int alpha, int beta);
+// Added ply which tracks how deep we are from the root (for killer moves)
+int negamax(Board &board, int depth, int alpha, int beta, int ply);
 int quiescence(Board &board, int alpha, int beta);
 
 // ========= QUIESCENCE SEARCH =========
@@ -429,6 +509,7 @@ SearchResult find_best_move(Board &board, int maxDepth)
     search_start_time = std::chrono::steady_clock::now();
     search_aborted = false;
     node_count = 0;  // Reset node counter
+    clear_killers();  // Reset killer moves for new search
 
     std::vector<Move> moves = board.generate_moves();
 
@@ -480,7 +561,7 @@ SearchResult find_best_move(Board &board, int maxDepth)
         for (const Move &move : moves)
         {
             board.make_move(move);
-            int score = -negamax(board, currentDepth - 1, -beta, -alpha);
+            int score = -negamax(board, currentDepth - 1, -beta, -alpha, 1);
             board.unmake_move(move);
 
             // Check if search was aborted due to time
@@ -525,7 +606,7 @@ SearchResult find_best_move(Board &board, int maxDepth)
     return SearchResult(bestMove, bestScore);
 }
 
-int negamax(Board &board, int depth, int alpha, int beta)
+int negamax(Board &board, int depth, int alpha, int beta, int ply)
 {
     // ========= TIME CHECK =========
     if (check_time()) {
@@ -574,8 +655,8 @@ int negamax(Board &board, int depth, int alpha, int beta)
     }
 
     // Order moves for better alpha-beta pruning
-    // Use TT best move if available
-    order_moves(moves, board.team_white, ttMove);
+    // Use TT best move if available, and pass ply for killer move scoring
+    order_moves(moves, board.team_white, ttMove, ply);
 
     int bestScore = -INF;
     Move bestMove = moves[0];
@@ -608,7 +689,7 @@ int negamax(Board &board, int depth, int alpha, int beta)
         if (firstMove)
         {
             //Full-window search for the first (best-ordered) move
-            score = -negamax(board, depth - 1, -beta, -alpha);
+            score = -negamax(board, depth - 1, -beta, -alpha, ply + 1);
         }
         else
         {
@@ -616,13 +697,13 @@ int negamax(Board &board, int depth, int alpha, int beta)
             if (reduction > 0)
             {
                 // Do a reduced null-window search first
-                score = -negamax(board, depth - 1 - reduction, -alpha - 1, -alpha);
+                score = -negamax(board, depth - 1 - reduction, -alpha - 1, -alpha, ply + 1);
 
                 // If it looks interesting, re-search at full depth
                 // must treat any score that beats alpha as “suspiciously good” and verify it at full depth even if it is greater than beta
                 if (score > alpha)
                 {
-                    score = -negamax(board, depth - 1, -beta, -alpha);
+                    score = -negamax(board, depth - 1, -beta, -alpha, ply + 1);
                 }
             }
             else
@@ -630,11 +711,11 @@ int negamax(Board &board, int depth, int alpha, int beta)
                 // Principal Variation Search (PVS): null-window probe
                 // idea: the first move (with good move ordering) is probably the best move.
                 // do a cheap test search with a very narrow window [alpha, alpha+1] for later moves
-                score = -negamax(board, depth - 1, -alpha - 1, -alpha);
+                score = -negamax(board, depth - 1, -alpha - 1, -alpha, ply + 1);
                 // If it possibly improves alpha (it is a good candidate move), do a proper with full window [alpha, beta]
                 // We don’t re-search if score >= beta, because we already know it’s good enough to cause a cutoff
                 if (score > alpha && score < beta){
-                    score = -negamax(board, depth - 1, -beta, -alpha);
+                    score = -negamax(board, depth - 1, -beta, -alpha, ply + 1);
                 }
             }
         }
@@ -656,6 +737,8 @@ int negamax(Board &board, int depth, int alpha, int beta)
         if (alpha >= beta)
         {
             ttFlag = TT_BETA; // Failed high (cut node)
+            // Store killer move: quiet move that caused beta cutoff
+            store_killer(move, ply);
             // store cutoff info in TT and break
             store_tt(hash, depth, bestScore, ttFlag, bestMove);
             return bestScore;
