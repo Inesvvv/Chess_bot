@@ -18,7 +18,7 @@ static const int INF = std::numeric_limits<int>::max();
 // ====== TIME MANAGEMENT ========
 // Global variables to track time and abort search if needed
 static std::chrono::steady_clock::time_point search_start_time;
-static int time_limit_ms = 9000;  // 9 seconds (leave 1s margin before 10s timeout)
+int time_limit_ms = 9000;  // 9 seconds (leave 1s margin before 10s timeout)
 static bool search_aborted = false;
 
 // Node counter for periodic time checks (reset at start of each search)
@@ -41,18 +41,6 @@ static bool check_time() {
         }
     }
     return search_aborted;
-}
-
-// Allow callers (UCI front-end) to adjust the soft per-move time budget.
-// Non-positive values fall back to the default 9.5s cap.
-// Hard cap at 9 seconds to stay safely under 10s timeout.
-void set_time_limit_ms(int milliseconds)
-{
-    if (milliseconds <= 0) {
-        time_limit_ms = 9000;
-    } else {
-        time_limit_ms = std::min(milliseconds, 9000);  // Never exceed 9s
-    }
 }
 
 // ====== TRANSPOSITION TABLE ========
