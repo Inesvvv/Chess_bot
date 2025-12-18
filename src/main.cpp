@@ -133,7 +133,7 @@ int main(int argc, char *argv[])
     
 
     //make move using search and evaluation
-    int searchDepth = 10;  // Search 10 plies (5 full moves) deep
+    int searchDepth = 5;  // Search 10 plies (5 full moves) deep
     SearchResult result = find_best_move(board, searchDepth);
     Move next = result.bestMove;
     std::string next_move_str = move_to_string(next);
