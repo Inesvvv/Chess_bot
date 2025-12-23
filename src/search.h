@@ -7,7 +7,10 @@ struct SearchResult
 {
     Move bestMove;
     int score;
-    SearchResult(const Move& m, int s) : bestMove(m), score(s) {}
+    uint64_t nodes_explored;
+    int depth_reached;
+    SearchResult(const Move& m, int s, uint64_t nodes = 0, int depth = 0) 
+        : bestMove(m), score(s), nodes_explored(nodes), depth_reached(depth) {}
 };
 
 SearchResult find_best_move(Board &board, int maxDepth);

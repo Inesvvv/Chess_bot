@@ -18,7 +18,7 @@ namespace {
 
 struct Config {
     int games = 10;
-    int depth = 4;
+    int depth = 6;
     int maxPlies = 200;
     unsigned int seed = 42;
 };
@@ -60,6 +60,8 @@ struct GameStats {
     int plies = 0;
     int engineMoves = 0;
     double engineTimeMs = 0.0;
+    uint64_t totalNodes = 0;
+    int maxDepth = 0;
 };
 
 // creates a Board, loops up to maxPlies, alternates between chesster and the baseline player
@@ -88,6 +90,10 @@ GameStats play_single_game(const Config &cfg, bool enginePlaysWhite, std::mt1993
             chosen = result.bestMove;
             stats.engineTimeMs += std::chrono::duration<double, std::milli>(end - start).count();
             stats.engineMoves += 1;
+            stats.totalNodes += result.nodes_explored;
+            if (result.depth_reached > stats.maxDepth) {
+                stats.maxDepth = result.depth_reached;
+            }
 
             if (chosen.from < 0 || chosen.to < 0) {
                 stats.outcome = Outcome::BaselineWin;
@@ -131,6 +137,8 @@ int main(int argc, char **argv) {
     int totalPlies = 0;
     double totalEngineTimeMs = 0.0;
     int totalEngineMoves = 0;
+    uint64_t totalNodesExplored = 0;
+    int overallMaxDepth = 0;
 
     for (int game = 0; game < cfg.games; ++game) {
         bool engineWhite = (game % 2 == 0);
@@ -139,6 +147,10 @@ int main(int argc, char **argv) {
         totalPlies += stats.plies;
         totalEngineTimeMs += stats.engineTimeMs;
         totalEngineMoves += stats.engineMoves;
+        totalNodesExplored += stats.totalNodes;
+        if (stats.maxDepth > overallMaxDepth) {
+            overallMaxDepth = stats.maxDepth;
+        }
 
         switch (stats.outcome) {
         case Outcome::EngineWin:
@@ -155,7 +167,9 @@ int main(int argc, char **argv) {
         std::cout << "Game " << (game + 1)
                   << " (" << (engineWhite ? "engine as White" : "engine as Black")
                   << ") -> " << outcome_to_string(stats.outcome)
-                  << ", plies: " << stats.plies << '\n';
+                  << ", plies: " << stats.plies
+                  << ", nodes: " << stats.totalNodes
+                  << ", max depth: " << stats.maxDepth << '\n';
     }
 
     double winRate = (cfg.games > 0) ? (100.0 * engineWins / cfg.games) : 0.0;
@@ -169,6 +183,9 @@ int main(int argc, char **argv) {
     std::cout << "Win rate: " << winRate << "%\n";
     std::cout << "Average plies: " << (cfg.games ? (totalPlies / cfg.games) : 0) << '\n';
     std::cout << "Avg engine think time: " << avgEngineTime << " ms/move\n";
+    std::cout << "Total nodes explored: " << totalNodesExplored << '\n';
+    std::cout << "Avg nodes per move: " << (totalEngineMoves > 0 ? totalNodesExplored / totalEngineMoves : 0) << '\n';
+    std::cout << "Max depth reached: " << overallMaxDepth << '\n';
     std::cout << "===================================\n";
 
     return 0;

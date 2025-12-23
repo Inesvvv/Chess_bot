@@ -24,6 +24,12 @@ static bool search_aborted = false;
 // Node counter for periodic time checks (reset at start of each search)
 static int node_count = 0;
 
+// Total nodes explored in the search - put now to see if were improving the nb of nodes were looking at 
+static uint64_t total_nodes_explored = 0;
+
+// Maximum depth reached during iterative deepening - see if thats 
+static int max_depth_reached = 0;
+
 // ====== KILLER MOVES ========
 // Killer moves are quiet moves that caused a beta cutoff at a given ply.
 // We store 2 killer moves per ply (depth) - cant do more because going to take too much time. 
@@ -141,6 +147,7 @@ static bool is_time_up() {
 
 // Check time periodically to avoid overhead when checking for time out
 static bool check_time() {
+    total_nodes_explored++;  // Count every node visited
     if (++node_count >= 1024) {  // Check every 1024 nodes for quicker aborts
         node_count = 0;
         if (is_time_up()) {
@@ -385,23 +392,26 @@ static int score_move(const Move &move, bool white_to_move, int ply = -1)
 {
     int score = 0;
 
-    // Promotions are very valuable
+    // Promotions are very valuable - queen promotions are the best moves
     if (move.flag >= PROMO_QUEEN && move.flag <= PROMO_CAPTURE_K)
     {
-        score += 9000; // Base promotion score
+        score += 20000; // Base promotion score (above captures)
         // Queen promotions are best
         if (move.flag == PROMO_QUEEN || move.flag == PROMO_CAPTURE_Q)
         {
             score += 900;
         }
+        // Add capture bonus if it's a promotion-capture
+        if (move.flag >= PROMO_CAPTURE_Q && move.flag <= PROMO_CAPTURE_K) {
+            int victim_type = get_piece_on_square(move.to, !white_to_move);
+            score += MVV_LVA_VICTIM_SCORES[victim_type] * 10;
+        }
+        return score; // Promotions are always most imporant
     }
 
     // Captures: use MVV-LVA
-    if (move.flag == CAPTURE || move.flag == EN_PASSANT ||
-        // greater and smaller or equal to here is more efficient way of checking each capture promo since ordered in move.h
-        (move.flag >= PROMO_CAPTURE_Q && move.flag <= PROMO_CAPTURE_K))
+    if (move.flag == CAPTURE || move.flag == EN_PASSANT)
     {
-
         int victim_type;
         if (move.flag == EN_PASSANT)
         {
@@ -418,32 +428,30 @@ static int score_move(const Move &move, bool white_to_move, int ply = -1)
 
         // MVV-LVA: prioritize capturing high-value pieces with low-value pieces
         score += 10000 + MVV_LVA_VICTIM_SCORES[victim_type] * 10 - MVV_LVA_ATTACKER_SCORES[attacker_type];
-    }
-    // Killer moves: quiet moves that caused beta cutoff at this ply
-    // Scored below captures but above other quiet moves
-    // first killer = most recent beta cutoff move
-    // second killer = second most recent beta cutoff move
-    // --> having two increases the coverage of good quiet moves
-    else if (ply >= 0)
-    {
-        int killer_slot = get_killer_slot(move, ply);
-        if (killer_slot == 1) {
-            score += 8000;  // First killer
-        } else if (killer_slot == 2) {
-            score += 7000;  // Second killer
-        }
-        // History heuristic: add accumulated score for quiet moves
-        // Scored below killers (max 6000) but helps order remaining quiet moves
-        else {
-            score += get_history_score(move);
-        }
+        return score; // Captures are second priority
     }
 
-    // Castling is usually good but not as good as captures and promotions
+    // Killer moves: quiet moves that caused beta cutoff at this ply
+    // Scored below captures but above other quiet moves
+    int killer_slot = get_killer_slot(move, ply);
+    if (killer_slot == 1) {
+        score += 9000;  // First killer (just below captures)
+        return score;
+    } else if (killer_slot == 2) {
+        score += 8000;  // Second killer
+        return score;
+    }
+
+    // Castling is usually good - score above history moves
     if (move.flag == CASTLE_KINGSIDE || move.flag == CASTLE_QUEENSIDE)
     {
-        score += 500;
+        score += 7000;
+        return score;
     }
+
+    // History heuristic: add accumulated score for quiet moves
+    // Max history is 6000, so this comes after castling (changed castling because before was 500 which was too low)
+    score += get_history_score(move);
 
     return score;
 }
@@ -483,15 +491,13 @@ int quiescence(Board &board, int alpha, int beta);
 // Searches only captures until the position is "quiet"
 // This avoids the "horizon effect" where we stop searching right before
 // a big capture happens (e.g., stopping search when queen can be taken next move)
+
+// Delta pruning margins - if a capture doesnt raise alpha, skip it
+static const int DELTA_MARGIN = 200;  // Safety margin
+static const int PIECE_VALUES_QS[7] = {0, 100, 320, 330, 500, 900, 10000}; // For delta pruning
+
 int quiescence(Board &board, int alpha, int beta)
 {
-    // Skip draw detection in quiescence - too expensive and captures rarely lead to draws
-    // Check for draws first
-    // Board::DrawType draw_type = board.check_draw();
-    // if (draw_type != Board::NOT_A_DRAW)
-    // {
-    //     return 0; // All draws return 0 score
-    // }
     // ========= TIME CHECK =========
     if (check_time()) {
         return 0;  // Aborted, score doesn't matter
@@ -527,6 +533,27 @@ int quiescence(Board &board, int alpha, int beta)
             continue;
         }
 
+        // ========= DELTA PRUNING =========
+        // Skip captures that can't possibly improve alpha
+        // Even capturing the biggest piece + margin won't help
+        int victim_value = 0;
+        if (move.flag == EN_PASSANT) {
+            victim_value = PIECE_VALUES_QS[1]; // Pawn
+        } else {
+            int victim_type = get_piece_on_square(move.to, !board.team_white);
+            victim_value = PIECE_VALUES_QS[victim_type];
+        }
+        
+        // Add bonus for promotions
+        if (move.flag >= PROMO_QUEEN && move.flag <= PROMO_CAPTURE_K) {
+            victim_value += 800; // Approximate promotion value gain
+        }
+        
+        // If even with this capture we can't improve alpha, skip this 
+        if (stand_pat + victim_value + DELTA_MARGIN < alpha) {
+            continue;
+        }
+
         board.make_move(move);
         int score = -quiescence(board, -beta, -alpha);
         board.unmake_move(move);
@@ -559,6 +586,8 @@ SearchResult find_best_move(Board &board, int maxDepth)
     search_start_time = std::chrono::steady_clock::now();
     search_aborted = false;
     node_count = 0;  // Reset node counter
+    total_nodes_explored = 0;  // Reset total nodes counter
+    max_depth_reached = 0;  // Reset depth tracker
     clear_killers();  // Reset killer moves for new search
     clear_history();  // Reset history table for new search
 
@@ -580,7 +609,7 @@ SearchResult find_best_move(Board &board, int maxDepth)
             score = 0;
         }
 
-        return SearchResult(dummyMove, score);
+        return SearchResult(dummyMove, score, 0, 0);
     }
     
     Move bestMove = moves[0];
@@ -606,7 +635,7 @@ SearchResult find_best_move(Board &board, int maxDepth)
         bool completedIteration = true;
 
         // Use best move from previous iteration for ordering
-        order_moves(moves, board.team_white, bestMove);
+        order_moves(moves, board.team_white, bestMove, 0);
         Move iterationBestMove = moves[0];
 
         for (const Move &move : moves)
@@ -639,6 +668,7 @@ SearchResult find_best_move(Board &board, int maxDepth)
         {
             bestMove = iterationBestMove;
             bestScore = iterationBestScore;
+            max_depth_reached = currentDepth;  // Track the deepest depth so far
         }
 
         // Early exit if we found a forced mate
@@ -654,7 +684,7 @@ SearchResult find_best_move(Board &board, int maxDepth)
         }
     }
 
-    return SearchResult(bestMove, bestScore);
+    return SearchResult(bestMove, bestScore, total_nodes_explored, max_depth_reached);
 }
 
 int negamax(Board &board, int depth, int alpha, int beta, int ply)
@@ -690,12 +720,38 @@ int negamax(Board &board, int depth, int alpha, int beta, int ply)
         return ttScore; // Use cached result
     }
 
+    // ========= NULL MOVE PRUNING =========
+    // If we can give the opponent a free move and they still can't beat beta,
+    // then this position is likely so good that we can prune the search.
+    // Skip if: in check, at root, or at shallow depth
+    bool in_check = board.in_check();
+    if (!in_check && depth >= 3 && ply > 0)
+    {
+        // Make a "null move" we just flip the side to move (like we dont play)
+        board.team_white = !board.team_white;
+        
+        // Search with reduced depth
+        int R = 2;
+        if (depth > 6) R = 3;  // More aggressive reduction at higher depths
+        
+        int null_score = -negamax(board, depth - 1 - R, -beta, -beta + 1, ply + 1);
+        
+        // Unmake null move
+        board.team_white = !board.team_white;
+        
+        // If even with a free move opponent can't beat beta we prune
+        if (null_score >= beta)
+        {
+            return beta;
+        }
+    }
+
     std::vector<Move> moves = board.generate_moves();
 
     if (moves.empty())
     {
         // no legal moves: checkmate or stalemate
-        if (board.in_check())
+        if (in_check)
         {
             return -INF + 1;
         }
@@ -728,13 +784,16 @@ int negamax(Board &board, int depth, int alpha, int beta, int ply)
         // more shallow search to quickly check if there could be a promising move, if a
         // promising move is found, then you perform the full search.
         int reduction = 0;
-        if (!is_capture(move) && depth >= 3 && moveIndex >= 4)
+        bool dominated_by_in_check = board.in_check();  // Don't reduce if move gives check
+        
+        if (!is_capture(move) && !dominated_by_in_check && depth >= 2 && moveIndex >= 3 && !in_check)
         {
-            // using the following reduction method: 1 ply for moderately late quiet moves (late --> moveIndex >=4 ),
-            // 2 plies when deeper and even later in the move list
+            // Increasing LMR aggressivness (start reducing earlier)
             reduction = 1;
-            if (depth >= 6 && moveIndex >= 8)
+            if (depth >= 4 && moveIndex >= 6)
                 reduction = 2;
+            if (depth >= 6 && moveIndex >= 10)
+                reduction = 3;
         }
 
         if (firstMove)
@@ -750,7 +809,7 @@ int negamax(Board &board, int depth, int alpha, int beta, int ply)
                 // Do a reduced null-window search first
                 score = -negamax(board, depth - 1 - reduction, -alpha - 1, -alpha, ply + 1);
 
-                // If it looks interesting, re-search at full depth
+                // If it looks interesting, we re-search at full depth
                 // must treat any score that beats alpha as “suspiciously good” and verify it at full depth even if it is greater than beta
                 if (score > alpha)
                 {
