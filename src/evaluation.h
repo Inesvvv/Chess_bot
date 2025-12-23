@@ -102,7 +102,7 @@ namespace Evaluation {
     //additional bonus/malus for specific cases 
     const int BISHOP_PAIR_BONUS = 50;  // having both bishops
     const int ROOK_OPEN_FILE_BONUS = 20;  // rook on open file
-    const int ROOK_SEMI_OPEN_FILE_BONUS = 10; // rook on semi-open file
+    const int ROOK_SEMI_OPEN_FILE_BONUS = 5; // rook on semi-open file
     const int PASSED_PAWN_BONUS[8] = {0, 10, 20, 40, 60, 100, 150, 0}; // by rank
     const int ISOLATED_PAWN_PENALTY = -10; //for isolated pawn
     const int DOUBLED_PAWN_PENALTY = -15;
@@ -116,8 +116,8 @@ namespace Evaluation {
     const int KING_SAFETY_ENDGAME_SCALE = 60; // percent of king safety kept in endgame
     const int ROOK_ON_SEVENTH_BONUS = 30; //active rook
     const int CONNECTED_ROOKS_BONUS = 25; //rooks connected 
-    const int KNIGHT_OUTPOST_BONUS = 30; //knight defended by own pawn not aatacked by enemy pawn + enemy ranks
-    const int KNIGHT_OUTPOST_STRONG_BONUS = 50;
+    const int KNIGHT_OUTPOST_BONUS = 25; //knight defended by own pawn not aatacked by enemy pawn + enemy ranks
+    const int KNIGHT_OUTPOST_STRONG_BONUS = 40;
     const int BAD_BISHOP_PENALTY = -25; //bishop blocked by pieces
     const int BACKWARD_PAWN_PENALTY = -12; //pawn cant push safely + isolated
     const int PAWN_CHAIN_BONUS = 8; //connected pawns
@@ -144,7 +144,7 @@ namespace Evaluation {
     const int TRAPPED_ROOK_LIGHT = -20;        
     
     //queens 
-    const int TRAPPED_QUEEN_SEVERE = -150;      
+    const int TRAPPED_QUEEN_SEVERE = -120;      
     const int TRAPPED_QUEEN_MODERATE = -70;     
     const int TRAPPED_QUEEN_LIGHT = -25;       
     
