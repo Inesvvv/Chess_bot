@@ -12,6 +12,9 @@ class Board;
 
 namespace Evaluation {
     //representing values of pieces, reference 1 pawn = 100
+    // add midgame/endgame specific piece eval for tapered eval
+
+    // basic values
     const int PAWN_VALUE = 100;
     const int KNIGHT_VALUE = 320;
     const int BISHOP_VALUE = 330;
@@ -19,9 +22,34 @@ namespace Evaluation {
     const int QUEEN_VALUE = 900;
     const int KING_VALUE = 20000;
 
+    // midgame
+    const int PAWN_VALUE_MG = 100;
+    const int KNIGHT_VALUE_MG = 320;
+    const int BISHOP_VALUE_MG = 330;
+    const int ROOK_VALUE_MG = 500;
+    const int QUEEN_VALUE_MG = 900;
+    const int KING_VALUE_MG = 20000;
+
+    // endgame
+    const int PAWN_VALUE_EG = 120;
+    const int KNIGHT_VALUE_EG = 300;
+    const int BISHOP_VALUE_EG = 340;
+    const int ROOK_VALUE_EG = 520;
+    const int QUEEN_VALUE_EG = 950;
+    const int KING_VALUE_EG = 20000;
+    
+    //phase calculation
+    const int PHASE_KNIGHT = 1;
+    const int PHASE_BISHOP = 1;
+    const int PHASE_ROOK = 2;
+    const int PHASE_QUEEN = 4;
+    const int TOTAL_PHASE = 24; 
+
 
     // we got all the following tables from YouTube videos, Internet forums and AI
     // increase of value of pieces if they are on particular squares
+
+    //without tapered eval
     const int PAWN_TABLE[64] = {
         0,   0,   0,   0,   0,   0,   0,   0,
         50,  50,  50,  50,  50,  50,  50,  50,
@@ -77,6 +105,120 @@ namespace Evaluation {
         -20, -10, -10,  -5,  -5, -10, -10, -20
     };
 
+    // added PST tables for midgame/endgame to have distinction for tapered eval
+
+    const int PAWN_TABLE_MG[64] = {
+        0,   0,   0,   0,   0,   0,   0,   0,
+        50,  50,  50,  50,  50,  50,  50,  50,
+        10,  10,  20,  30,  30,  20,  10,  10,
+        5,   5,  10,  25,  25,  10,   5,   5,
+        0,   0,   0,  20,  20,   0,   0,   0,
+        5,  -5, -10,   0,   0, -10,  -5,   5,
+        5,  10,  10, -20, -20,  10,  10,   5,
+        0,   0,   0,   0,   0,   0,   0,   0
+    };
+
+    const int PAWN_TABLE_EG[64] = {
+        0,   0,   0,   0,   0,   0,   0,   0,
+        80,  80,  80,  80,  80,  80,  80,  80,
+        50,  50,  50,  50,  50,  50,  50,  50,
+        30,  30,  30,  30,  30,  30,  30,  30,
+        20,  20,  20,  20,  20,  20,  20,  20,
+        10,  10,  10,  10,  10,  10,  10,  10,
+        10,  10,  10,  10,  10,  10,  10,  10,
+        0,   0,   0,   0,   0,   0,   0,   0
+    };
+
+    const int KNIGHT_TABLE_MG[64] = {
+        -50, -40, -30, -30, -30, -30, -40, -50,
+        -40, -20,   0,   0,   0,   0, -20, -40,
+        -30,   0,  10,  15,  15,  10,   0, -30,
+        -30,   5,  15,  20,  20,  15,   5, -30,
+        -30,   0,  15,  20,  20,  15,   0, -30,
+        -30,   5,  10,  15,  15,  10,   5, -30,
+        -40, -20,   0,   5,   5,   0, -20, -40,
+        -50, -40, -30, -30, -30, -30, -40, -50
+    };
+
+    const int KNIGHT_TABLE_EG[64] = {
+        -50, -40, -30, -20, -20, -30, -40, -50,
+        -40, -20, -5,   0,   0, -5, -20, -40,
+        -30, -5,   0,  10,  10,   0, -5, -30,
+        -20,   0,  10,  15,  15,  10,   0, -20,
+        -20,   0,  10,  15,  15,  10,   0, -20,
+        -30, -5,   0,  10,  10,   0, -5, -30,
+        -40, -20, -5,   0,   0, -5, -20, -40,
+        -50, -40, -30, -20, -20, -30, -40, -50
+    };
+
+    const int BISHOP_TABLE_MG[64] = {
+        -20, -10, -10, -10, -10, -10, -10, -20,
+        -10,   0,   0,   0,   0,   0,   0, -10,
+        -10,   0,   5,  10,  10,   5,   0, -10,
+        -10,   5,   5,  10,  10,   5,   5, -10,
+        -10,   0,  10,  10,  10,  10,   0, -10,
+        -10,  10,  10,  10,  10,  10,  10, -10,
+        -10,   5,   0,   0,   0,   0,   5, -10,
+        -20, -10, -10, -10, -10, -10, -10, -20
+    };
+
+    const int BISHOP_TABLE_EG[64] = {
+        -20, -10, -10, -10, -10, -10, -10, -20,
+        -10,   0,   0,   5,   5,   0,   0, -10,
+        -10,   0,   5,  10,  10,   5,   0, -10,
+        -10,   5,  10,  15,  15,  10,   5, -10,
+        -10,   5,  10,  15,  15,  10,   5, -10,
+        -10,   0,   5,  10,  10,   5,   0, -10,
+        -10,   0,   0,   5,   5,   0,   0, -10,
+        -20, -10, -10, -10, -10, -10, -10, -20
+    };
+
+    const int ROOK_TABLE_MG[64] = {
+        0,   0,   0,   0,   0,   0,   0,   0,
+        5,  10,  10,  10,  10,  10,  10,   5,
+        -5,   0,   0,   0,   0,   0,   0,  -5,
+        -5,   0,   0,   0,   0,   0,   0,  -5,
+        -5,   0,   0,   0,   0,   0,   0,  -5,
+        -5,   0,   0,   0,   0,   0,   0,  -5,
+        -5,   0,   0,   0,   0,   0,   0,  -5,
+        0,   0,   0,   5,   5,   0,   0,   0
+    };
+
+    const int ROOK_TABLE_EG[64] = {
+        0,   0,   0,   0,   0,   0,   0,   0,
+        10,  15,  15,  15,  15,  15,  15,  10,
+        0,   0,   0,   0,   0,   0,   0,   0,
+        0,   0,   0,   0,   0,   0,   0,   0,
+        0,   0,   0,   0,   0,   0,   0,   0,
+        0,   0,   0,   0,   0,   0,   0,   0,
+        0,   0,   0,   0,   0,   0,   0,   0,
+        0,   0,   0,   0,   0,   0,   0,   0
+    }; 
+    //maybe delete or change this since its basically the same as our 7-th rank bonus and otherwise rooks are good in endgames anyways, so PST table not so important
+
+    const int QUEEN_TABLE_MG[64] = {
+        -20, -10, -10,  -5,  -5, -10, -10, -20,
+        -10,   0,   0,   0,   0,   0,   0, -10,
+        -10,   0,   5,   5,   5,   5,   0, -10,
+        -5,   0,   5,   5,   5,   5,   0,  -5,
+         0,   0,   5,   5,   5,   5,   0,  -5,
+        -10,   5,   5,   5,   5,   5,   0, -10,
+        -10,   0,   5,   0,   0,   0,   0, -10,
+        -20, -10, -10,  -5,  -5, -10, -10, -20
+    };
+
+    const int QUEEN_TABLE_EG[64] = {
+        -20, -10, -10,  -5,  -5, -10, -10, -20,
+        -10,   0,   0,   0,   0,   0,   0, -10,
+        -10,   0,   5,   5,   5,   5,   0, -10,
+        -5,   0,   5,  10,  10,   5,   0,  -5,
+        -5,   0,   5,  10,  10,   5,   0,  -5,
+        -10,   0,   5,   5,   5,   5,   0, -10,
+        -10,   0,   0,   0,   0,   0,   0, -10,
+        -20, -10, -10,  -5,  -5, -10, -10, -20
+    };
+
+    //we already defined a difference for king MG/EG before tapered eval so no changes here
     const int KING_MIDDLEGAME_TABLE[64] = {
         -30, -40, -40, -50, -50, -40, -40, -30,
         -30, -40, -40, -50, -50, -40, -40, -30,
@@ -103,7 +245,9 @@ namespace Evaluation {
     const int BISHOP_PAIR_BONUS = 50;  // having both bishops
     const int ROOK_OPEN_FILE_BONUS = 20;  // rook on open file
     const int ROOK_SEMI_OPEN_FILE_BONUS = 5; // rook on semi-open file
-    const int PASSED_PAWN_BONUS[8] = {0, 10, 20, 40, 60, 100, 150, 0}; // by rank
+    const int PASSED_PAWN_BONUS[8] = {0, 10, 20, 40, 60, 100, 150, 0}; //before tapered
+    const int PASSED_PAWN_BONUS_MG[8] = {0, 10, 20, 40, 60, 100, 150, 0}; // by rank, MG
+    const int PASSED_PAWN_BONUS_EG[8] = {0, 15, 30, 60, 100, 160, 250, 0}; // by rank, EG
     const int ISOLATED_PAWN_PENALTY = -10; //for isolated pawn
     const int DOUBLED_PAWN_PENALTY = -15;
     const int MOBILITY_BONUS = 5;  // per legal move in middlegame
@@ -152,6 +296,40 @@ namespace Evaluation {
     const int CORNER_TRAP_PENALTY = -25;        //Extra penalty for corner traps
     const int EDGE_TRAP_PENALTY = -12;          //Extra penalty for edge pieces with low mobility
     const int BLOCKED_BY_OWN_PENALTY = -10;     //Blocked by own pawns
+
+    //tapred score
+    struct TaperedScore {
+        int mg;  // Middlegame score
+        int eg;  // Endgame score
+
+        TaperedScore() : mg(0), eg(0) {}
+        TaperedScore(int m, int e) : mg(m), eg(e) {}
+
+        TaperedScore operator+(const TaperedScore& other) const {
+            return TaperedScore(mg + other.mg, eg + other.eg);
+        }
+
+        TaperedScore operator-(const TaperedScore& other) const {
+            return TaperedScore(mg - other.mg, eg - other.eg);
+        }
+
+        TaperedScore& operator+=(const TaperedScore& other) {
+            mg += other.mg;
+            eg += other.eg;
+            return *this;
+        }
+
+        TaperedScore& operator-=(const TaperedScore& other) {
+            mg -= other.mg;
+            eg -= other.eg;
+            return *this;
+        }
+
+        // Interpolate between MG and EG based on phase
+        int interpolate(int phase) const {
+            return (mg * phase + eg * (TOTAL_PHASE - phase)) / TOTAL_PHASE;
+        }
+    };
 
     // flip square index for black's perspective
     inline int flip_square(int square) {
@@ -297,6 +475,58 @@ namespace Evaluation {
 
     int evaluate_backward_pawns(Bitboards::Bitboard white_pawns,
                            Bitboards::Bitboard black_pawns);
+
+    int evaluate_tapered(Bitboards::Bitboard white_pawns,
+                     Bitboards::Bitboard white_knights,
+                     Bitboards::Bitboard white_bishops,
+                     Bitboards::Bitboard white_rooks,
+                     Bitboards::Bitboard white_queens,
+                     Bitboards::Bitboard white_kings,
+                     Bitboards::Bitboard black_pawns,
+                     Bitboards::Bitboard black_knights,
+                     Bitboards::Bitboard black_bishops,
+                     Bitboards::Bitboard black_rooks,
+                     Bitboards::Bitboard black_queens,
+                     Bitboards::Bitboard black_kings,
+                     Bitboards::Bitboard occupied,
+                     bool white_to_move);
+
+                     int calculate_phase(Bitboards::Bitboard white_knights,
+                        Bitboards::Bitboard white_bishops,
+                        Bitboards::Bitboard white_rooks,
+                        Bitboards::Bitboard white_queens,
+                        Bitboards::Bitboard black_knights,
+                        Bitboards::Bitboard black_bishops,
+                        Bitboards::Bitboard black_rooks,
+                        Bitboards::Bitboard black_queens);
+    
+    TaperedScore evaluate_material_tapered(Bitboards::Bitboard white_pawns,
+                                           Bitboards::Bitboard white_knights,
+                                           Bitboards::Bitboard white_bishops,
+                                           Bitboards::Bitboard white_rooks,
+                                           Bitboards::Bitboard white_queens,
+                                           Bitboards::Bitboard black_pawns,
+                                           Bitboards::Bitboard black_knights,
+                                           Bitboards::Bitboard black_bishops,
+                                           Bitboards::Bitboard black_rooks,
+                                           Bitboards::Bitboard black_queens);
+    
+    TaperedScore evaluate_pst_tapered(Bitboards::Bitboard white_pawns,
+                                      Bitboards::Bitboard white_knights,
+                                      Bitboards::Bitboard white_bishops,
+                                      Bitboards::Bitboard white_rooks,
+                                      Bitboards::Bitboard white_queens,
+                                      Bitboards::Bitboard white_kings,
+                                      Bitboards::Bitboard black_pawns,
+                                      Bitboards::Bitboard black_knights,
+                                      Bitboards::Bitboard black_bishops,
+                                      Bitboards::Bitboard black_rooks,
+                                      Bitboards::Bitboard black_queens,
+                                      Bitboards::Bitboard black_kings);
+    
+    TaperedScore evaluate_pawn_structure_tapered(Bitboards::Bitboard white_pawns,
+                                                 Bitboards::Bitboard black_pawns,
+                                                 Bitboards::Bitboard occupied);
 
 } // namespace Evaluation
 

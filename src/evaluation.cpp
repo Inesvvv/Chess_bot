@@ -9,6 +9,33 @@
 
 namespace Evaluation {
 
+//calculate phase (for now endgame/midgame) for tappered eval
+// ==================== PHASE CALCULATION ====================
+int calculate_phase(Bitboards::Bitboard white_knights,
+                    Bitboards::Bitboard white_bishops,
+                    Bitboards::Bitboard white_rooks,
+                    Bitboards::Bitboard white_queens,
+                    Bitboards::Bitboard black_knights,
+                    Bitboards::Bitboard black_bishops,
+                    Bitboards::Bitboard black_rooks,
+                    Bitboards::Bitboard black_queens) {
+    int phase = 0;
+    
+    phase += popcount(white_knights) * PHASE_KNIGHT;
+    phase += popcount(black_knights) * PHASE_KNIGHT;
+    phase += popcount(white_bishops) * PHASE_BISHOP;
+    phase += popcount(black_bishops) * PHASE_BISHOP;
+    phase += popcount(white_rooks) * PHASE_ROOK;
+    phase += popcount(black_rooks) * PHASE_ROOK;
+    phase += popcount(white_queens) * PHASE_QUEEN;
+    phase += popcount(black_queens) * PHASE_QUEEN;
+    
+    if (phase > TOTAL_PHASE) phase = TOTAL_PHASE;
+    if (phase < 0) phase = 0;
+    
+    return phase;
+}
+
 // counts each piece type for both sides, applies standard piece values, adds a bishop pair bonus if a side has two bishops
 int evaluate_material(Bitboards::Bitboard white_pawns, Bitboards::Bitboard white_knights,
                      Bitboards::Bitboard white_bishops, Bitboards::Bitboard white_rooks,
@@ -956,6 +983,276 @@ int evaluate_backward_pawns(Bitboards::Bitboard white_pawns,
     return score;
 }
 
+
+//same functions as above but now implemented with the tapered logic
+
+//material evaluation
+TaperedScore evaluate_material_tapered(Bitboards::Bitboard white_pawns, 
+                                        Bitboards::Bitboard white_knights,
+                                        Bitboards::Bitboard white_bishops, 
+                                        Bitboards::Bitboard white_rooks,
+                                        Bitboards::Bitboard white_queens,
+                                        Bitboards::Bitboard black_pawns, 
+                                        Bitboards::Bitboard black_knights,
+                                        Bitboards::Bitboard black_bishops, 
+                                        Bitboards::Bitboard black_rooks,
+                                        Bitboards::Bitboard black_queens) {
+    TaperedScore score;
+    
+    //white material
+    score.mg += popcount(white_pawns) * PAWN_VALUE_MG;
+    score.mg += popcount(white_knights) * KNIGHT_VALUE_MG;
+    score.mg += popcount(white_bishops) * BISHOP_VALUE_MG;
+    score.mg += popcount(white_rooks) * ROOK_VALUE_MG;
+    score.mg += popcount(white_queens) * QUEEN_VALUE_MG;
+    
+    score.eg += popcount(white_pawns) * PAWN_VALUE_EG;
+    score.eg += popcount(white_knights) * KNIGHT_VALUE_EG;
+    score.eg += popcount(white_bishops) * BISHOP_VALUE_EG;
+    score.eg += popcount(white_rooks) * ROOK_VALUE_EG;
+    score.eg += popcount(white_queens) * QUEEN_VALUE_EG;
+    
+    //black material
+    score.mg -= popcount(black_pawns) * PAWN_VALUE_MG;
+    score.mg -= popcount(black_knights) * KNIGHT_VALUE_MG;
+    score.mg -= popcount(black_bishops) * BISHOP_VALUE_MG;
+    score.mg -= popcount(black_rooks) * ROOK_VALUE_MG;
+    score.mg -= popcount(black_queens) * QUEEN_VALUE_MG;
+    
+    score.eg -= popcount(black_pawns) * PAWN_VALUE_EG;
+    score.eg -= popcount(black_knights) * KNIGHT_VALUE_EG;
+    score.eg -= popcount(black_bishops) * BISHOP_VALUE_EG;
+    score.eg -= popcount(black_rooks) * ROOK_VALUE_EG;
+    score.eg -= popcount(black_queens) * QUEEN_VALUE_EG;
+    
+    //bishop pair bonus
+    if (popcount(white_bishops) >= 2) {
+        score.mg += BISHOP_PAIR_BONUS;
+        score.eg += BISHOP_PAIR_BONUS;
+    }
+    if (popcount(black_bishops) >= 2) {
+        score.mg -= BISHOP_PAIR_BONUS;
+        score.eg -= BISHOP_PAIR_BONUS;
+    }
+    
+    return score;
+}
+
+//tapered piece-square table evaluation
+TaperedScore evaluate_pst_tapered(Bitboards::Bitboard white_pawns, 
+                                   Bitboards::Bitboard white_knights,
+                                   Bitboards::Bitboard white_bishops, 
+                                   Bitboards::Bitboard white_rooks,
+                                   Bitboards::Bitboard white_queens, 
+                                   Bitboards::Bitboard white_kings,
+                                   Bitboards::Bitboard black_pawns, 
+                                   Bitboards::Bitboard black_knights,
+                                   Bitboards::Bitboard black_bishops, 
+                                   Bitboards::Bitboard black_rooks,
+                                   Bitboards::Bitboard black_queens, 
+                                   Bitboards::Bitboard black_kings) {
+    TaperedScore score;
+    
+    auto eval_pieces = [&](Bitboards::Bitboard pieces, 
+                           const int* table_mg, 
+                           const int* table_eg,
+                           bool is_white, 
+                           int multiplier) {
+        Bitboards::Bitboard temp = pieces;
+        while (temp) {
+            int sq = __builtin_ctzll(temp);
+            temp &= temp - 1;
+            score.mg += multiplier * get_pst_value(table_mg, sq, is_white);
+            score.eg += multiplier * get_pst_value(table_eg, sq, is_white);
+        }
+    };
+    
+    //white pieces
+    eval_pieces(white_pawns, PAWN_TABLE_MG, PAWN_TABLE_EG, true, 1);
+    eval_pieces(white_knights, KNIGHT_TABLE_MG, KNIGHT_TABLE_EG, true, 1);
+    eval_pieces(white_bishops, BISHOP_TABLE_MG, BISHOP_TABLE_EG, true, 1);
+    eval_pieces(white_rooks, ROOK_TABLE_MG, ROOK_TABLE_EG, true, 1);
+    eval_pieces(white_queens, QUEEN_TABLE_MG, QUEEN_TABLE_EG, true, 1);
+    eval_pieces(white_kings, KING_MIDDLEGAME_TABLE, KING_ENDGAME_TABLE, true, 1);
+    
+    //black pieces
+    eval_pieces(black_pawns, PAWN_TABLE_MG, PAWN_TABLE_EG, false, -1);
+    eval_pieces(black_knights, KNIGHT_TABLE_MG, KNIGHT_TABLE_EG, false, -1);
+    eval_pieces(black_bishops, BISHOP_TABLE_MG, BISHOP_TABLE_EG, false, -1);
+    eval_pieces(black_rooks, ROOK_TABLE_MG, ROOK_TABLE_EG, false, -1);
+    eval_pieces(black_queens, QUEEN_TABLE_MG, QUEEN_TABLE_EG, false, -1);
+    eval_pieces(black_kings, KING_MIDDLEGAME_TABLE, KING_ENDGAME_TABLE, false, -1);
+    
+    return score;
+}
+
+//pawn structure evaluation
+TaperedScore evaluate_pawn_structure_tapered(Bitboards::Bitboard white_pawns,
+                                              Bitboards::Bitboard black_pawns,
+                                              Bitboards::Bitboard /* occupied */) {
+    TaperedScore score;
+    
+    //evaluate white pawns
+    Bitboards::Bitboard temp_white = white_pawns;
+    while (temp_white) {
+        int sq = __builtin_ctzll(temp_white);
+        temp_white &= temp_white - 1;
+        
+        int file = sq % 8;
+        int rank = sq / 8;
+        
+        //passed pawn check - more valuable in endgame
+        if ((Bitboards::passed_pawn_white[sq] & black_pawns) == 0) {
+            score.mg += PASSED_PAWN_BONUS_MG[rank];
+            score.eg += PASSED_PAWN_BONUS_EG[rank];
+        }
+        
+        //isolated pawn check
+        if ((Bitboards::isolated_pawn_mask[sq] & white_pawns) == 0) {
+            score.mg += ISOLATED_PAWN_PENALTY;
+            score.eg += ISOLATED_PAWN_PENALTY;
+        }
+        
+        //doubled pawns check
+        Bitboards::Bitboard file_mask = Bitboards::file_mask[file];
+        if (popcount(white_pawns & file_mask) > 1) {
+            score.mg += DOUBLED_PAWN_PENALTY;
+            score.eg += DOUBLED_PAWN_PENALTY;
+        }
+    }
+    
+    //evaluate black pawns
+    Bitboards::Bitboard temp_black = black_pawns;
+    while (temp_black) {
+        int sq = __builtin_ctzll(temp_black);
+        temp_black &= temp_black - 1;
+        
+        int file = sq % 8;
+        int rank = sq / 8;
+        
+        //passed pawn check
+        if ((Bitboards::passed_pawn_black[sq] & white_pawns) == 0) {
+            score.mg -= PASSED_PAWN_BONUS_MG[7 - rank];
+            score.eg -= PASSED_PAWN_BONUS_EG[7 - rank];
+        }
+        
+        //isolated pawn check
+        if ((Bitboards::isolated_pawn_mask[sq] & black_pawns) == 0) {
+            score.mg -= ISOLATED_PAWN_PENALTY;
+            score.eg -= ISOLATED_PAWN_PENALTY;
+        }
+        
+        //doubled pawns check
+        Bitboards::Bitboard file_mask = Bitboards::file_mask[file];
+        if (popcount(black_pawns & file_mask) > 1) {
+            score.mg -= DOUBLED_PAWN_PENALTY;
+            score.eg -= DOUBLED_PAWN_PENALTY;
+        }
+    }
+    
+    return score;
+}
+
+int evaluate_tapered(Bitboards::Bitboard white_pawns,
+                     Bitboards::Bitboard white_knights,
+                     Bitboards::Bitboard white_bishops,
+                     Bitboards::Bitboard white_rooks,
+                     Bitboards::Bitboard white_queens,
+                     Bitboards::Bitboard white_kings,
+                     Bitboards::Bitboard black_pawns,
+                     Bitboards::Bitboard black_knights,
+                     Bitboards::Bitboard black_bishops,
+                     Bitboards::Bitboard black_rooks,
+                     Bitboards::Bitboard black_queens,
+                     Bitboards::Bitboard black_kings,
+                     Bitboards::Bitboard occupied,
+                     bool white_to_move)
+{
+    //calculate game phase
+    int phase = calculate_phase(white_knights, white_bishops, white_rooks, white_queens,
+                                black_knights, black_bishops, black_rooks, black_queens);
+    
+    TaperedScore total_score;
+    
+    // 1. Material evaluation 
+    total_score += evaluate_material_tapered(white_pawns, white_knights, white_bishops,
+                                              white_rooks, white_queens,
+                                              black_pawns, black_knights, black_bishops,
+                                              black_rooks, black_queens);
+    
+    // 2. Piece-square tables 
+    total_score += evaluate_pst_tapered(white_pawns, white_knights, white_bishops,
+                                         white_rooks, white_queens, white_kings,
+                                         black_pawns, black_knights, black_bishops,
+                                         black_rooks, black_queens, black_kings);
+    
+    // 3. Pawn structure 
+    total_score += evaluate_pawn_structure_tapered(white_pawns, black_pawns, occupied);
+    
+    //interpolate the tapered score based on phase
+    int score = total_score.interpolate(phase);
+    
+    // 4. Piece activity (not yet tapered)
+    score += evaluate_piece_activity(white_rooks, black_rooks, white_pawns, black_pawns, occupied);
+    
+    // 5. King safety (not yet tapered - uses legacy is_endgame)
+    int white_material = popcount(white_knights) * KNIGHT_VALUE +
+                         popcount(white_bishops) * BISHOP_VALUE +
+                         popcount(white_rooks) * ROOK_VALUE +
+                         popcount(white_queens) * QUEEN_VALUE;
+    int black_material = popcount(black_knights) * KNIGHT_VALUE +
+                         popcount(black_bishops) * BISHOP_VALUE +
+                         popcount(black_rooks) * ROOK_VALUE +
+                         popcount(black_queens) * QUEEN_VALUE;
+    bool endgame = is_endgame(white_material, black_material);
+    
+    score += evaluate_king_safety(white_kings, black_kings,
+                                   white_pawns, black_pawns,
+                                   white_knights, black_knights,
+                                   white_bishops, black_bishops,
+                                   white_rooks, black_rooks,
+                                   white_queens, black_queens,
+                                   occupied, endgame);
+    
+    // 6. Trapped pieces
+    Bitboards::Bitboard all_white = white_pawns | white_knights | white_bishops |
+                                     white_rooks | white_queens | white_kings;
+    Bitboards::Bitboard all_black = black_pawns | black_knights | black_bishops |
+                                     black_rooks | black_queens | black_kings;
+    
+    score += evaluate_trapped_pieces(white_knights, white_bishops, white_rooks, white_queens,
+                                      black_knights, black_bishops, black_rooks, black_queens,
+                                      white_pawns, black_pawns, all_white, all_black, occupied);
+    
+    // 7. Knight outposts
+    score += evaluate_knight_outposts(white_knights, black_knights, white_pawns, black_pawns);
+    
+    // 8. Connected rooks
+    score += evaluate_connected_rooks(white_rooks, black_rooks, occupied);
+    
+    // 9. Pawn chains
+    score += evaluate_pawn_chains(white_pawns, black_pawns);
+    
+    // 10. Center control
+    score += evaluate_center_control(white_pawns, black_pawns, all_white, all_black);
+    
+    // 11. Space advantage
+    score += evaluate_space(white_pawns, black_pawns, all_white, all_black);
+    
+    // 12. Backward pawns
+    score += evaluate_backward_pawns(white_pawns, black_pawns);
+    
+    // 13. Tempo bonus
+    if (white_to_move) {
+        score += 10;
+    } else {
+        score -= 10;
+    }
+    
+    return score;
+}
+
+// Legacy evaluate function (kept for comparison/testing)
 // main function that calls all functions above
 // decides if the position is in the endgame, adds everything up, includes tempo bonus
 int evaluate(Bitboards::Bitboard white_pawns,
@@ -1053,26 +1350,26 @@ int evaluate(Bitboards::Bitboard white_pawns,
     return score;
 }
 
-// wrapper that grabs bitboards and side to move then calls evaluate()
-// Returns score from the perspective of the team!!! created issue with black moves before 
+// wrapper that grabs bitboards and side to move then calls evaluate_tapered()
+// Returns score from the perspective of the team
 int evaluate_board(const Board& board)
 {
-    int score = evaluate(Bitboards::white_pawns,
-                   Bitboards::white_knights,
-                   Bitboards::white_bishops,
-                   Bitboards::white_rooks,
-                   Bitboards::white_queens,
-                   Bitboards::white_kings,
-                   Bitboards::black_pawns,
-                   Bitboards::black_knights,
-                   Bitboards::black_bishops,
-                   Bitboards::black_rooks,
-                   Bitboards::black_queens,
-                   Bitboards::black_kings,
-                   Bitboards::occupied,
-                   board.team_white);
+    int score = evaluate_tapered(Bitboards::white_pawns,
+                                  Bitboards::white_knights,
+                                  Bitboards::white_bishops,
+                                  Bitboards::white_rooks,
+                                  Bitboards::white_queens,
+                                  Bitboards::white_kings,
+                                  Bitboards::black_pawns,
+                                  Bitboards::black_knights,
+                                  Bitboards::black_bishops,
+                                  Bitboards::black_rooks,
+                                  Bitboards::black_queens,
+                                  Bitboards::black_kings,
+                                  Bitboards::occupied,
+                                  board.team_white);
     
-    // evaluate() returns score from White's perspective, so we negate for Black
+    // evaluate_tapered() returns score from White's perspective, so we negate for Black
     return board.team_white ? score : -score;
 }
 

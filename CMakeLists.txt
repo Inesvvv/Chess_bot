@@ -36,3 +36,15 @@ add_executable(victory_test
 )
 # shares the same headers as the main engine
 target_include_directories(victory_test PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/src)
+
+
+# Evaluation tester
+add_executable(eval_tester
+    src/eval_tester.cpp
+    src/board.cpp
+    src/bitboards.cpp
+    src/magic.cpp
+    src/evaluation.cpp
+    src/search.cpp
+)
+target_include_directories(eval_tester PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/src)

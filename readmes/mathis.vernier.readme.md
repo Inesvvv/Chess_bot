@@ -7,11 +7,11 @@
 
 #Week 2: 1/12 - 6/12
 
-- Implemented magic bitboards in order to efficiently code sliders attacks
+- Implemented magic bitboards in order to efficiently code slider attacks
 - redid the logic for rook, bishop and queen using these magic bitboards to be more efficient
 - Fixed our pawn starting structure
 - Added an initial castling logic which was corrected by apolline later
-- Created an is attacked function with Chloe in order to check if a square is being attacked, (I used it to check if castling is possible)
+- Created an is_attacked function with Chloe in order to check if a square is being attacked, (I used it to check if castling is possible)
 - Added the files for evaluation using piece values and specific cases to determine the evaluation of a board
 - Fixed magic.cpp and magic.h
 
@@ -20,3 +20,10 @@
 - Fixed structure in board to try and get 100% legal moves
 - added draw detection, checking or stalemate, threefold repetition, 50-move rule and insufficient material
 - Added draw detection in search function: If losing, try to get a threefold repetition or another draw, If winning prevent draw
+
+
+#Week 4: 14/12 - 21/12
+
+- Added new evaluation functions like: outposts, multiple pawn penalty/bonus, bonus for space
+- Fixed some eval values since they were impacting the game to much (we were doing stupid rook moves in almost every game a1b1 and h1g1 while none were open files losing tempo)
+- implemented tempered evalution to avoid having a single switch (MIDDLEGAME/ENDGAME) and have a smoother transition
