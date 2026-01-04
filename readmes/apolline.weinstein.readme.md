@@ -25,3 +25,15 @@ the data provided by the professor.
     - we were doing 50% legal moves --> this was because we were timing out. To fix this I realized we were not restoring position history in unmake_move() so while we were searching the position history was growing and slowing down the search
     - we had a duplicate en passant move so i fixed that
     - I also fixed a lot spacing and just visual aesthetics (that's why I randomly have 1000 insertions in my commits)
+
+#Week 4: 
+- I worked on the opening book functionality during the last week + the break
+This consisted of editing the search files and the main files as well as creating a new folder with books and creating an opening_book file that uses polyglot format opening books (I first researched what format was best and decided binary would be more efficient than text format even though text would be more readable)
+- In the opening_book file (opening_book.h and opening_book.cpp), I implemented:
+    - loading the book
+    - checking for the position in the opening book by computing a 64-bit Zobrist hash of the current board position and binary searching the opening book for that position
+    - I also implemented a function to convert from polyglot move format to the original move structure that we use
+- This functionality is used in main.cpp where I try to find a move in the opening book and fall back on out usual search method if not found.
+    - for now, we are using the a test opening book (with 42 entries covering 14 different positions that I made myself) but this can easily be changed in one line to use the other opening books I found that are useful.
+    - the reason why I did this is because I haven't found an opening book online that I fully understand yet neither have I found an opening book comprehensive zobrist hashing scheme that matches our code so I am still searching for a proper book.
+- I also cleaned up a couple of files and removed some old tester files we weren't using anymore

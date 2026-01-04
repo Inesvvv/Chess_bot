@@ -20,6 +20,7 @@ add_executable(chesster
     src/magic.cpp
     src/evaluation.cpp
     src/search.cpp
+    src/opening_book.cpp
 )
 
 # expose headers in src/ to the target
@@ -33,6 +34,7 @@ add_executable(victory_test
     src/magic.cpp
     src/evaluation.cpp
     src/search.cpp
+    src/opening_book.cpp
 )
 # shares the same headers as the main engine
 target_include_directories(victory_test PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/src)
@@ -46,5 +48,6 @@ add_executable(eval_tester
     src/magic.cpp
     src/evaluation.cpp
     src/search.cpp
+    src/opening_book.cpp
 )
 target_include_directories(eval_tester PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/src)
