@@ -138,6 +138,8 @@ static int get_history_score(const Move& move) {
     return history_table[move.from][move.to];
 }
 
+// ======== TIME MANAGEMENT =========
+
 // Check if we've exceeded the time limit
 static bool is_time_up() {
     auto now = std::chrono::steady_clock::now();
