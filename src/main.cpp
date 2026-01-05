@@ -11,7 +11,7 @@
 #include <iomanip>
 
 #include "board.h"
-
+#include "opening_book.h"
 #include "search.h"
 
 // HELPER FUNCTIONS TO PASS FROM FILE TO MOVE
@@ -25,8 +25,6 @@ std::string index_to_square(int sq)
     char rankChar = static_cast<char>('1' + rank);
     return std::string() + fileChar + rankChar;
 }
-
-
 
 // helper function to go from a move to a string representing the move
 std::string move_to_string(const Move &m)
@@ -63,7 +61,6 @@ std::string move_to_string(const Move &m)
 
     return s;
 }
-
 
 int main(int argc, char *argv[])
 {
@@ -122,7 +119,6 @@ int main(int argc, char *argv[])
             }
         }
     }
-    
 
     board.team_white = (history_moves.size() % 2 == 0);
 
@@ -130,16 +126,42 @@ int main(int argc, char *argv[])
     std::cout << "Position after history:\n";
     board.print_board();
 
-    
+    // ========= OPENING BOOK =========
 
-    //make move using search and evaluation
-    int searchDepth = 5;  // Search 10 plies (5 full moves) deep
-    SearchResult result = find_best_move(board, searchDepth);
-    Move next = result.bestMove;
-    std::string next_move_str = move_to_string(next);
+    // Try to load and use the opening book
+    Move next = Move(-1, -1, QUIET);
+    std::string next_move_str = "";
 
-    std::cout << "Next move: " << next_move_str
-            << " (score: " << result.score << ")\n";
+    // Load the custom opening book (generated with matching zobrist hashing from search.cpp)
+    if (g_opening_book.load_book("../books/custom.bin"))
+    {
+        if (try_opening_book_move(board, next))
+        {
+            next_move_str = move_to_string(next);
+            std::cout << "Using opening book move: " << next_move_str << "\n";
+        }
+    }
+
+    // Opening book options (in the books folder):
+    // custom.bin - tester opening book to verify functionality
+    // Human.bin - Balanced, human-like openings (incompatible hash)
+    // komodo.bin - Strong computer engine knowledge (incompatible hash)
+    // baron30.bin - Alternative high-quality book (incompatible hash)
+    // gm2001.bin - Grandmaster games (incompatible hash)
+    // rodent.bin - Engine book (incompatible hash)
+
+    // If no opening book move found, use search
+    if (next_move_str.empty())
+    {
+        std::cout << "Position not in opening book, using search...\n";
+        int searchDepth = 5; // Search 10 plies (5 full moves) deep
+        SearchResult result = find_best_move(board, searchDepth);
+        next = result.bestMove;
+        next_move_str = move_to_string(next);
+
+        std::cout << "Next move: " << next_move_str
+                  << " (score: " << result.score << ")\n";
+    }
 
     if (next_move_str.empty())
     {
