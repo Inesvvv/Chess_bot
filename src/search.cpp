@@ -31,6 +31,11 @@ static uint64_t total_nodes_explored = 0;
 // Maximum depth reached during iterative deepening - see if thats 
 static int max_depth_reached = 0;
 
+// Aspiration window size (in centipawns) used at the root.
+// We search in [prevScore - ASPIRATION_WINDOW, prevScore + ASPIRATION_WINDOW]
+// and, if that fails high/low, we fall back to a full-window re-search.
+static const int ASPIRATION_WINDOW = 50;
+
 // ====== KILLER MOVES ========
 // Killer moves are quiet moves that caused a beta cutoff at a given ply.
 // We store 2 killer moves per ply (depth) - cant do more because going to take too much time. 
@@ -618,6 +623,10 @@ SearchResult find_best_move(Board &board, int maxDepth)
     Move bestMove = moves[0];
     int bestScore = -INF;
 
+    // previous iteration's score for aspiration windows
+    int prevScore = 0;
+    bool hasPrevScore = false;
+
     // ========= ITERATIVE DEEPENING =========
     // Search progressively deeper: depth 1, 2, 3, ... maxDepth
     // Each iteration improves move ordering for the next
@@ -630,10 +639,6 @@ SearchResult find_best_move(Board &board, int maxDepth)
             break;  // Return best move from previous completed depth
         }
 
-        int alpha = -INF;
-        int beta = INF;
-
-        
         int iterationBestScore = -INF;
         bool completedIteration = true;
 
@@ -641,29 +646,87 @@ SearchResult find_best_move(Board &board, int maxDepth)
         order_moves(moves, board.team_white, bestMove, 0);
         Move iterationBestMove = moves[0];
 
-        for (const Move &move : moves)
+        // ======== ASPIRATION WINDOW LOOP AT ROOT ========
+        // First try a narrow window around the previous depth's score.
+        // On fail-low or fail-high, re-search once with a full window.
+        bool firstWindow = true;
+        while (true)
         {
-            board.make_move(move);
-            int score = -negamax(board, currentDepth - 1, -beta, -alpha, 1);
-            board.unmake_move(move);
+            int alpha;
+            int beta;
 
-            // Check if search was aborted due to time
-            if (search_aborted)
+            if (!hasPrevScore || currentDepth == 1)
             {
-                completedIteration = false;
+                // No previous information yet: use full window
+                alpha = -INF;
+                beta = INF;
+            }
+            else if (firstWindow)
+            {
+                // Narrow aspiration window around previous score
+                alpha = prevScore - ASPIRATION_WINDOW;
+                beta = prevScore + ASPIRATION_WINDOW;
+            }
+            else
+            {
+                // Second try: use full window after a failed aspiration
+                alpha = -INF;
+                beta = INF;
+            }
+
+            iterationBestScore = -INF;
+            completedIteration = true;
+            iterationBestMove = moves[0];
+
+            for (const Move &move : moves)
+            {
+                board.make_move(move);
+                int score = -negamax(board, currentDepth - 1, -beta, -alpha, 1);
+                board.unmake_move(move);
+
+                // Check if search was aborted due to time
+                if (search_aborted)
+                {
+                    completedIteration = false;
+                    break;
+                }
+
+                if (score > iterationBestScore)
+                {
+                    iterationBestScore = score;
+                    iterationBestMove = move;
+                }
+
+                if (score > alpha)
+                {
+                    alpha = score;
+                }
+            }
+
+            // If aborted during this depth, stop searching deeper
+            if (!completedIteration)
+            {
                 break;
             }
 
-            if (score > iterationBestScore)
+            // If we didn't use aspiration (full window) or we already retried,
+            // accept this result.
+            if (!hasPrevScore || currentDepth == 1 || !firstWindow)
             {
-                iterationBestScore = score;
-                iterationBestMove = move;
+                break;
             }
 
-            if (score > alpha)
+            // With aspiration and firstWindow == true:
+            // Detect fail-low or fail-high and trigger one full-window re-search.
+            if (iterationBestScore <= (prevScore - ASPIRATION_WINDOW) ||
+                iterationBestScore >= (prevScore + ASPIRATION_WINDOW))
             {
-                alpha = score;
+                firstWindow = false;
+                continue;
             }
+
+            // Score is within aspiration window: accept it
+            break;
         }
 
         // Only update best move if we completed this iteration
@@ -672,6 +735,8 @@ SearchResult find_best_move(Board &board, int maxDepth)
             bestMove = iterationBestMove;
             bestScore = iterationBestScore;
             max_depth_reached = currentDepth;  // Track the deepest depth so far
+            prevScore = bestScore;
+            hasPrevScore = true;
         }
 
         // Early exit if we found a forced mate
