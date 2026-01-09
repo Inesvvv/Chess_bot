@@ -24,3 +24,6 @@ Week 4
 - worked on increasing efficiency of alpha beta pruning by specifically looking at improving for quiet moves by implementing killer moves and history moves
 - increased the possible depth reached by adding null move pruning as well as delta move pruning which allowed ro remove a lot of nodes explored 
 - fixed the move ordering that wasn't correct because castling for example we noticed in our games that we were never castling and this was because the castling move was scored too low so was always at the end of the move ordering 
+
+Week 5 
+- added aspiration windows to search.cpp to reduce number of nodes explored. This works by speeding up alpha–beta search by starting each iterative deepening step with a narrow alpha beta window centered around the previous iterations score, and we research only if the actual value lies outside the windo (Ex: score >= beta)
