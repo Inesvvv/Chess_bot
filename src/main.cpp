@@ -154,7 +154,7 @@ int main(int argc, char *argv[])
     if (next_move_str.empty())
     {
         std::cout << "Position not in opening book, using search...\n";
-        int searchDepth = 5; // Search 10 plies (5 full moves) deep
+        int searchDepth = 10; // Search 20 plies (10 full moves) deep
         SearchResult result = find_best_move(board, searchDepth);
         next = result.bestMove;
         next_move_str = move_to_string(next);

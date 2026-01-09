@@ -125,7 +125,7 @@ double cp_to_pawns(int cp) {
 // Returns evaluation in centipawns from white's perspective
 // Returns INT_MIN if Stockfish is not available or fails
 int get_stockfish_eval(const std::string& fen, const std::string& stockfish_path = "stockfish") {
-    std::string command = "printf 'uci\\nisready\\nposition fen " + fen + "\\ngo depth 15\\nquit\\n' | " + stockfish_path;
+    std::string command = "printf 'uci\\nisready\\nposition fen " + fen + "\\ngo depth 1\\nquit\\n' | " + stockfish_path;
     
     std::array<char, 128> buffer;
     std::string result;
