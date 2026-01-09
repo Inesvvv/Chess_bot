@@ -37,3 +37,8 @@ This consisted of editing the search files and the main files as well as creatin
     - for now, we are using the a test opening book (with 42 entries covering 14 different positions that I made myself) but this can easily be changed in one line to use the other opening books I found that are useful.
     - the reason why I did this is because I haven't found an opening book online that I fully understand yet neither have I found an opening book comprehensive zobrist hashing scheme that matches our code so I am still searching for a proper book.
 - I also cleaned up a couple of files and removed some old tester files we weren't using anymore
+
+#Week #5
+- Continued working on opening book functionality
+CONCLUSION:
+- the opening book doesn't actually optimize that much and found no opening books online that were clear enough to understand + to use

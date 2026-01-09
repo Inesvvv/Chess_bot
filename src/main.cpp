@@ -11,7 +11,7 @@
 #include <iomanip>
 
 #include "board.h"
-#include "opening_book.h"
+// #include "opening_book.h"
 #include "search.h"
 
 // HELPER FUNCTIONS TO PASS FROM FILE TO MOVE
@@ -133,14 +133,14 @@ int main(int argc, char *argv[])
     std::string next_move_str = "";
 
     // Load the custom opening book (generated with matching zobrist hashing from search.cpp)
-    if (g_opening_book.load_book("../books/custom.bin"))
-    {
-        if (try_opening_book_move(board, next))
-        {
-            next_move_str = move_to_string(next);
-            std::cout << "Using opening book move: " << next_move_str << "\n";
-        }
-    }
+    // if (g_opening_book.load_book("../books/custom.bin"))
+    // {
+    //     if (try_opening_book_move(board, next))
+    //     {
+    //         next_move_str = move_to_string(next);
+    //         std::cout << "Using opening book move: " << next_move_str << "\n";
+    //     }
+    // }
 
     // Opening book options (in the books folder):
     // custom.bin - tester opening book to verify functionality
@@ -151,17 +151,17 @@ int main(int argc, char *argv[])
     // rodent.bin - Engine book (incompatible hash)
 
     // If no opening book move found, use search
-    if (next_move_str.empty())
-    {
-        std::cout << "Position not in opening book, using search...\n";
-        int searchDepth = 10; // Search 20 plies (10 full moves) deep
-        SearchResult result = find_best_move(board, searchDepth);
-        next = result.bestMove;
-        next_move_str = move_to_string(next);
+    // if (next_move_str.empty())
+    // {
+    //     std::cout << "Position not in opening book, using search...\n";
+    int searchDepth = 10; // Search 20 plies (10 full moves) deep
+    SearchResult result = find_best_move(board, searchDepth);
+    next = result.bestMove;
+    next_move_str = move_to_string(next);
 
-        std::cout << "Next move: " << next_move_str
-                  << " (score: " << result.score << ")\n";
-    }
+    std::cout << "Next move: " << next_move_str
+                << " (score: " << result.score << ")\n";
+    // }
 
     if (next_move_str.empty())
     {

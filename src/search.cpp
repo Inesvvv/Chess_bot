@@ -5,7 +5,7 @@
 
 #include "search.h"
 #include "evaluation.h"
-#include "opening_book.h"
+// #include "opening_book.h"
 #include "bitboards.h"
 #include <limits>
 #include <vector>
@@ -937,21 +937,21 @@ int negamax(Board &board, int depth, int alpha, int beta, int ply)
 }
 
 // Try to get a move from the opening book
-bool try_opening_book_move(Board &board, Move& book_move) {
-    extern OpeningBook g_opening_book;
+// bool try_opening_book_move(Board &board, Move& book_move) {
+//     extern OpeningBook g_opening_book;
     
-    if (!g_opening_book.is_loaded()) {
-        return false;
-    }
+//     if (!g_opening_book.is_loaded()) {
+//         return false;
+//     }
     
-    // Get all available book moves for this position
-    auto moves = g_opening_book.get_all_book_moves(board);
+//     // Get all available book moves for this position
+//     auto moves = g_opening_book.get_all_book_moves(board);
     
-    if (moves.empty()) {
-        return false;
-    }
+//     if (moves.empty()) {
+//         return false;
+//     }
     
-    // Return the move with the highest weight (best move)
-    book_move = moves[0].first;
-    return true;
-}
+//     // Return the move with the highest weight (best move)
+//     book_move = moves[0].first;
+//     return true;
+// }
