@@ -39,6 +39,17 @@ add_executable(victory_test
 # shares the same headers as the main engine
 target_include_directories(victory_test PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/src)
 
+# UCI interface binary for testing with Stockfish/cutechess
+add_executable(chesster_uci
+    src/uci_main.cpp
+    src/board.cpp
+    src/bitboards.cpp
+    src/magic.cpp
+    src/evaluation.cpp
+    src/search.cpp
+    src/opening_book.cpp
+) 
+target_include_directories(chesster_uci PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/src)
 
 # Evaluation tester
 add_executable(eval_tester
