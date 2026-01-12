@@ -24,7 +24,7 @@ namespace Evaluation {
 
     // midgame
     const int PAWN_VALUE_MG = 100;
-    const int KNIGHT_VALUE_MG = 320;
+    const int KNIGHT_VALUE_MG = 315;
     const int BISHOP_VALUE_MG = 330;
     const int ROOK_VALUE_MG = 500;
     const int QUEEN_VALUE_MG = 900;
@@ -129,15 +129,15 @@ namespace Evaluation {
         0,   0,   0,   0,   0,   0,   0,   0
     };
 
-    const int KNIGHT_TABLE_MG[64] = {
-        -50, -40, -30, -30, -30, -30, -40, -50,
-        -40, -20,   0,   0,   0,   0, -20, -40,
-        -30,   0,  10,  15,  15,  10,   0, -30,
-        -30,   5,  15,  20,  20,  15,   5, -30,
-        -30,   0,  15,  20,  20,  15,   0, -30,
-        -30,   5,  10,  15,  15,  10,   5, -30,
-        -40, -20,   0,   5,   5,   0, -20, -40,
-        -50, -40, -30, -30, -30, -30, -40, -50
+    const int KNIGHT_TABLE_MG[64] = { //look at this maybe again later we move knight to the center to fast, changed (just by feeling and only a tiny bit) a bit might need more
+        -45, -37, -27, -25, -25, -27, -37, -45,
+        -37, -18,   0,   0,   0,   0, -18, -37,
+        -27,   0,  9,  13,  13,  9,   0, -27,
+        -25,   5,  13,  18,  18,  13,   5, -25,
+        -25,   0,  13,  18,  18,  13,   0, -25,
+        -27,   5,  9,  13,  13,  9,   5, -27,
+        -37, -18,   0,   5,   5,   0, -18, -37,
+        -45, -37, -27, -25, -25, -27, -40, -45
     };
 
     const int KNIGHT_TABLE_EG[64] = {
@@ -258,7 +258,7 @@ namespace Evaluation {
     const int KING_OPEN_FILE_PENALTY = 6;    // additional penalty if fully open
     const int KING_ZONE_ATTACK_PENALTY = 10; // per enemy attack in king zone
     const int KING_SAFETY_ENDGAME_SCALE = 60; // percent of king safety kept in endgame
-    const int ROOK_ON_SEVENTH_BONUS = 30; //active rook
+    const int ROOK_ON_SEVENTH_BONUS = 25; //active rook - might be to much with pst table
     const int CONNECTED_ROOKS_BONUS = 25; //rooks connected 
     const int KNIGHT_OUTPOST_BONUS = 25; //knight defended by own pawn not aatacked by enemy pawn + enemy ranks
     const int KNIGHT_OUTPOST_STRONG_BONUS = 40;
@@ -273,8 +273,8 @@ namespace Evaluation {
 
     //penalties for trapped pieces (3 levels of restriction of moves) look at values again might be a bit to harsh
     //knights 
-    const int TRAPPED_KNIGHT_SEVERE = -80;      
-    const int TRAPPED_KNIGHT_MODERATE = -40;   
+    const int TRAPPED_KNIGHT_SEVERE = -75;      
+    const int TRAPPED_KNIGHT_MODERATE = -35;   
     const int TRAPPED_KNIGHT_LIGHT = -15;       
     
     //bishops 
