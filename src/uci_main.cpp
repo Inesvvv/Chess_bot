@@ -239,7 +239,7 @@ void handle_go(Board &board, std::istringstream &iss) {
 		}
 	}
 
-	std::cout << "info depth " << depth
+	std::cout << "info depth " << result.depth_reached
 			  << " score cp " << result.score
 			  << " time " << elapsed
 			  << " tlim " << time_limit << '\n';
