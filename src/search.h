@@ -20,7 +20,3 @@ void clear_transposition_table();
 
 // Compute zobrist hash for a board position (used for repetition detection)
 uint64_t compute_hash(const Board &board);
-
-// Try to get a move from the opening book. Returns true if found, false otherwise.
-// If successful, the book_move will be set to the best book move.
-// bool try_opening_book_move(Board &board, Move& book_move);

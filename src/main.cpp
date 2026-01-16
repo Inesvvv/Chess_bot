@@ -9,9 +9,7 @@
 #include <vector>
 #include <ctime>
 #include <iomanip>
-
 #include "board.h"
-// #include "opening_book.h"
 #include "search.h"
 
 // HELPER FUNCTIONS TO PASS FROM FILE TO MOVE
@@ -126,34 +124,10 @@ int main(int argc, char *argv[])
     std::cout << "Position after history:\n";
     board.print_board();
 
-    // ========= OPENING BOOK =========
 
-    // Try to load and use the opening book
     Move next = Move(-1, -1, QUIET);
     std::string next_move_str = "";
 
-    // Load the custom opening book (generated with matching zobrist hashing from search.cpp)
-    // if (g_opening_book.load_book("../books/custom.bin"))
-    // {
-    //     if (try_opening_book_move(board, next))
-    //     {
-    //         next_move_str = move_to_string(next);
-    //         std::cout << "Using opening book move: " << next_move_str << "\n";
-    //     }
-    // }
-
-    // Opening book options (in the books folder):
-    // custom.bin - tester opening book to verify functionality
-    // Human.bin - Balanced, human-like openings (incompatible hash)
-    // komodo.bin - Strong computer engine knowledge (incompatible hash)
-    // baron30.bin - Alternative high-quality book (incompatible hash)
-    // gm2001.bin - Grandmaster games (incompatible hash)
-    // rodent.bin - Engine book (incompatible hash)
-
-    // If no opening book move found, use search
-    // if (next_move_str.empty())
-    // {
-    //     std::cout << "Position not in opening book, using search...\n";
     int searchDepth = 10; // Search 20 plies (10 full moves) deep
     SearchResult result = find_best_move(board, searchDepth);
     next = result.bestMove;
