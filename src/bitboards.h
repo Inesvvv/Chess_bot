@@ -52,13 +52,10 @@ namespace Bitboards
 
     // --------------- Masks ----------------
     extern std::array<Bitboard, 8> file_mask;                              // file A-H
-    extern std::array<Bitboard, 8> rank_mask;                              // rank 1-8
     extern std::array<Bitboard, 64> knight_attacks;                        // precomputed knight attack masks
     extern std::array<Bitboard, 64> king_attacks;                          // precomputed king attack masks
     extern std::array<Bitboard, 64> pawn_attacks_white;                    // precomputed white pawn attack masks
     extern std::array<Bitboard, 64> pawn_attacks_black;                    // precomputed black pawn attack masks
-    extern std::array<std::array<Bitboard, 64>, 64> pawn_ep_attacks_white; // array because en passant depends on both pawn position and en passant square
-    extern std::array<std::array<Bitboard, 64>, 64> pawn_ep_attacks_black;
     // Masks used in evaluation later on:
     extern std::array<Bitboard, 64> passed_pawn_white;
     extern std::array<Bitboard, 64> passed_pawn_black;
