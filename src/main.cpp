@@ -135,8 +135,7 @@ int main(int argc, char *argv[])
 
     std::cout << "Next move: " << next_move_str
                 << " (score: " << result.score << ")\n";
-    // }
-
+    
     if (next_move_str.empty())
     {
         std::cerr << "Did not find any legal moves.\n";
