@@ -251,9 +251,9 @@ namespace Evaluation {
     const int ISOLATED_PAWN_PENALTY = -10; //for isolated pawn
     const int DOUBLED_PAWN_PENALTY = -15;
     const int MOBILITY_BONUS = 5;  // per legal move in middlegame
-    const int KING_SHIELD_NEAR_BONUS = 12;   // pawn directly in front of king
-    const int KING_SHIELD_FAR_BONUS = 6;     // pawn two ranks ahead of king
-    const int KING_SHIELD_GAP_PENALTY = 8;   // missing pawn in the shield
+    const int KING_SHIELD_NEAR_BONUS = 22;   // pawn directly in front of king
+    const int KING_SHIELD_FAR_BONUS = 12;     // pawn two ranks ahead of king
+    const int KING_SHIELD_GAP_PENALTY = 10;   // missing pawn in the shield
     const int KING_SEMI_OPEN_FILE_PENALTY = 12; // king near semi-open file
     const int KING_OPEN_FILE_PENALTY = 6;    // additional penalty if fully open
     const int KING_ZONE_ATTACK_PENALTY = 10; // per enemy attack in king zone
