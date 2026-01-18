@@ -353,7 +353,7 @@ void clear_transposition_table()
 
 // Piece values for MVV-LVA (Most Valuable Victim - Least Valuable Attacker)
 static const int MVV_LVA_VICTIM_SCORES[7] = {0, 100, 320, 330, 500, 900, 10000}; // None, Pawn, Knight, Bishop, Rook, Queen, King
-static const int MVV_LVA_ATTACKER_SCORES[7] = {0, 5, 4, 3, 2, 1, 0};             // Lower score = better attacker (pawn capturing is best)
+static const int MVV_LVA_ATTACKER_SCORES[7] = {0, 0, 1, 2, 3, 4, 0};             // Lower score = better attacker (pawn capturing is best)
 
 // Get the piece type on a square (0=none, 1=pawn, 2=knight, 3=bishop, 4=rook, 5=queen, 6=king)
 static int get_piece_on_square(int sq, bool for_white)
@@ -441,7 +441,7 @@ static int score_move(const Move &move, bool white_to_move, int ply = -1)
     // Killer moves: quiet moves that caused beta cutoff at this ply
     // Scored below captures but above other quiet moves
     int killer_slot = get_killer_slot(move, ply);
-    if (killer_slot == 1) {
+    if (killer_slot == 1) { 
         score += 9000;  // First killer (just below captures)
         return score;
     } else if (killer_slot == 2) {

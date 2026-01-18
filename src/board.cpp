@@ -18,14 +18,14 @@ using namespace Bitboards;
 
 Board::Board() {
   // Initialize bitboards, attacks and masks
-  Bitboards::init_bitboards();
-  Bitboards::init_attack_tables();
-  Bitboards::init_masks();
+  init_bitboards();
+  init_attack_tables();
+  init_masks();
   Magic::init_magics();
 }
 
 // utility function that pops least significant bit and returns index
-int Board::pop_lsb(Bitboards::Bitboard &b) const {
+int Board::pop_lsb(Bitboard &b) const {
   if (b == 0)
     return -1;
   int position = __builtin_ctzll(b);
