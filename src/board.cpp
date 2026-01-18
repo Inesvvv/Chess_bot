@@ -189,190 +189,190 @@ int Board::count_checkers(bool white_to_move) const {
 }
 
 // compute pinned pieces for a given color
-Bitboards::Bitboard Board::compute_pinned(bool for_white) const {
-  Bitboards::Bitboard pinned = 0ULL; // start with no pinned pieces
+// Bitboards::Bitboard Board::compute_pinned(bool for_white) const {
+//   Bitboards::Bitboard pinned = 0ULL; // start with no pinned pieces
 
-  int king_square = find_king(for_white); // find king
+//   int king_square = find_king(for_white); // find king
 
-  if (king_square < 0)
-    return pinned;
+//   if (king_square < 0)
+//     return pinned;
   
-  int king_rank = king_square / 8;
-  int king_file = king_square % 8;
+//   int king_rank = king_square / 8;
+//   int king_file = king_square % 8;
 
-  // 8 directions from king: N, S, E, W, NE, NW, SE, SW
-  const int dr[8] = {1, -1, 0, 0, 1, 1, -1, -1}; //rank change
-  const int df[8] = {0, 0, 1, -1, 1, -1, 1, -1}; // file change
+//   // 8 directions from king: N, S, E, W, NE, NW, SE, SW
+//   const int dr[8] = {1, -1, 0, 0, 1, 1, -1, -1}; //rank change
+//   const int df[8] = {0, 0, 1, -1, 1, -1, 1, -1}; // file change
 
-  // check each of 8 directions from the king
-  for (int dir = 0; dir < 8; ++dir) {
-    int r = king_rank + dr[dir];
-    int f = king_file + df[dir];
-    bool found_friendly = false;
-    int friendly_sq = -1;
+//   // check each of 8 directions from the king
+//   for (int dir = 0; dir < 8; ++dir) {
+//     int r = king_rank + dr[dir];
+//     int f = king_file + df[dir];
+//     bool found_friendly = false;
+//     int friendly_sq = -1;
 
-    // go along the direction until off the board
-    while (r >= 0 && r < 8 && f >= 0 && f < 8) {
-      //check each square
-      int s = sq(f, r);
-      Bitboard sbit = bit(s);
+//     // go along the direction until off the board
+//     while (r >= 0 && r < 8 && f >= 0 && f < 8) {
+//       //check each square
+//       int s = sq(f, r);
+//       Bitboard sbit = bit(s);
       
-      if (occupied & sbit) {
-        // if square is occupied, check if it's friendly or enemy
-        bool is_friendly = for_white ? (all_white & sbit) : (all_black & sbit); 
-        bool is_enemy = for_white ? (all_black & sbit) : (all_white & sbit);
+//       if (occupied & sbit) {
+//         // if square is occupied, check if it's friendly or enemy
+//         bool is_friendly = for_white ? (all_white & sbit) : (all_black & sbit); 
+//         bool is_enemy = for_white ? (all_black & sbit) : (all_white & sbit);
 
-        if (is_friendly) { //case 1: found a friendly piece
-          if (!found_friendly) {
-            found_friendly = true;
-            friendly_sq = s; //potentially pinned piece
-          } else {
-            break;
-          }
-        } else if (is_enemy) { // case 2: found an enemy piece
-          if (!found_friendly) {
-            break; //in this case since we haven't seen a friendly piece yet, the enemy is just directly attacking the king (no pin)
-          } else {
-            // check whether this enemy piece is a sliding attacker along this direction
-            bool is_diag = (dir >= 4);
-            Bitboard enemy_rooks = for_white ? black_rooks : white_rooks;
-            Bitboard enemy_bishops = for_white ? black_bishops : white_bishops;
-            Bitboard enemy_queens = for_white ? black_queens : white_queens;
+//         if (is_friendly) { //case 1: found a friendly piece
+//           if (!found_friendly) {
+//             found_friendly = true;
+//             friendly_sq = s; //potentially pinned piece
+//           } else {
+//             break;
+//           }
+//         } else if (is_enemy) { // case 2: found an enemy piece
+//           if (!found_friendly) {
+//             break; //in this case since we haven't seen a friendly piece yet, the enemy is just directly attacking the king (no pin)
+//           } else {
+//             // check whether this enemy piece is a sliding attacker along this direction
+//             bool is_diag = (dir >= 4);
+//             Bitboard enemy_rooks = for_white ? black_rooks : white_rooks;
+//             Bitboard enemy_bishops = for_white ? black_bishops : white_bishops;
+//             Bitboard enemy_queens = for_white ? black_queens : white_queens;
 
-            bool slider = false;
-            if (is_diag) {
-              if ((enemy_bishops & sbit) || (enemy_queens & sbit))
-                slider = true;
-            } else {
-              if ((enemy_rooks & sbit) || (enemy_queens & sbit))
-                slider = true;
-            }
+//             bool slider = false;
+//             if (is_diag) {
+//               if ((enemy_bishops & sbit) || (enemy_queens & sbit))
+//                 slider = true;
+//             } else {
+//               if ((enemy_rooks & sbit) || (enemy_queens & sbit))
+//                 slider = true;
+//             }
 
-            if (slider) {
-              pinned |= bit(friendly_sq); //if the enemy is a slider, then the piece we found earlier (friendly_sq) is pinned !
-            }
-            break;
-          }
-        } else {
-          break;
-        }
-      }
+//             if (slider) {
+//               pinned |= bit(friendly_sq); //if the enemy is a slider, then the piece we found earlier (friendly_sq) is pinned !
+//             }
+//             break;
+//           }
+//         } else {
+//           break;
+//         }
+//       }
 
-      r += dr[dir];
-      f += df[dir];
-    }
-  }
-  return pinned; // a bitboard with bits set for all pinned pieces
-}
+//       r += dr[dir];
+//       f += df[dir];
+//     }
+//   }
+//   return pinned; // a bitboard with bits set for all pinned pieces
+// }
 
-// build legal moves for pinned pieces
-void Board::compute_pin_masks( bool for_white, std::array<Bitboards::Bitboard, 64> &out_masks) const {
-  using Bitboard = Bitboards::Bitboard;
-  out_masks.fill(0ULL); // set all masks to 0 (no moves allowed by defualt)
+// // build legal moves for pinned pieces
+// void Board::compute_pin_masks( bool for_white, std::array<Bitboards::Bitboard, 64> &out_masks) const {
+//   using Bitboard = Bitboards::Bitboard;
+//   out_masks.fill(0ULL); // set all masks to 0 (no moves allowed by defualt)
 
-  int king_square = find_king(for_white);
-  if (king_square < 0)
-    return;
+//   int king_square = find_king(for_white);
+//   if (king_square < 0)
+//     return;
 
-  int king_rank = king_square / 8;
-  int king_file = king_square % 8;
+//   int king_rank = king_square / 8;
+//   int king_file = king_square % 8;
 
-  const int dr[8] = {1, -1, 0, 0, 1, 1, -1, -1};
-  const int df[8] = {0, 0, 1, -1, 1, -1, 1, -1};
+//   const int dr[8] = {1, -1, 0, 0, 1, 1, -1, -1};
+//   const int df[8] = {0, 0, 1, -1, 1, -1, 1, -1};
 
-  // for each direction from king:
-  for (int dir = 0; dir < 8; ++dir) {
-    int r = king_rank + dr[dir];
-    int f = king_file + df[dir];
-    bool found_friendly = false;
-    int friendly_sq = -1;
+//   // for each direction from king:
+//   for (int dir = 0; dir < 8; ++dir) {
+//     int r = king_rank + dr[dir];
+//     int f = king_file + df[dir];
+//     bool found_friendly = false;
+//     int friendly_sq = -1;
 
-    // go along the direction until off the board
-    while (r >= 0 && r < 8 && f >= 0 && f < 8) {
-      int s = sq(f, r); //square index
-      Bitboard sbit = bit(s); // square's bitboard
+//     // go along the direction until off the board
+//     while (r >= 0 && r < 8 && f >= 0 && f < 8) {
+//       int s = sq(f, r); //square index
+//       Bitboard sbit = bit(s); // square's bitboard
 
-      if (occupied & sbit) {
-        // if square is occupied, check if it's friendly or enemy (like in compute_pinned)
-        bool is_friendly = for_white ? (all_white & sbit) : (all_black & sbit);
-        bool is_enemy = for_white ? (all_black & sbit) : (all_white & sbit);
+//       if (occupied & sbit) {
+//         // if square is occupied, check if it's friendly or enemy (like in compute_pinned)
+//         bool is_friendly = for_white ? (all_white & sbit) : (all_black & sbit);
+//         bool is_enemy = for_white ? (all_black & sbit) : (all_white & sbit);
 
-        if (is_friendly) { 
-          if (!found_friendly) {
-            found_friendly = true;
-            friendly_sq = s;
-          } else {
-            break;
-          }
-        } else if (is_enemy) {
-          if (!found_friendly) {
-            break;
-          } else {
-            bool is_diag = (dir >= 4);
-            Bitboard enemy_rooks = for_white ? black_rooks : white_rooks;
-            Bitboard enemy_bishops = for_white ? black_bishops : white_bishops;
-            Bitboard enemy_queens = for_white ? black_queens : white_queens;
+//         if (is_friendly) { 
+//           if (!found_friendly) {
+//             found_friendly = true;
+//             friendly_sq = s;
+//           } else {
+//             break;
+//           }
+//         } else if (is_enemy) {
+//           if (!found_friendly) {
+//             break;
+//           } else {
+//             bool is_diag = (dir >= 4);
+//             Bitboard enemy_rooks = for_white ? black_rooks : white_rooks;
+//             Bitboard enemy_bishops = for_white ? black_bishops : white_bishops;
+//             Bitboard enemy_queens = for_white ? black_queens : white_queens;
 
-            bool slider = false;
-            if (is_diag) {
-              if ((enemy_bishops & sbit) || (enemy_queens & sbit))
-                slider = true;
-            } else {
-              if ((enemy_rooks & sbit) || (enemy_queens & sbit))
-                slider = true;
-            }
+//             bool slider = false;
+//             if (is_diag) {
+//               if ((enemy_bishops & sbit) || (enemy_queens & sbit))
+//                 slider = true;
+//             } else {
+//               if ((enemy_rooks & sbit) || (enemy_queens & sbit))
+//                 slider = true;
+//             }
 
-            // different from compute_pinned bc now we create the possible squares the pinned piece can go to (the mask)
-            if (slider) {
-              // build the pin ray square by square from king to attacker
-              // include the pinned piece's square in the mask
-              Bitboard line = bit(friendly_sq); // start a bitboard with just pinned piece's square for now
+//             // different from compute_pinned bc now we create the possible squares the pinned piece can go to (the mask)
+//             if (slider) {
+//               // build the pin ray square by square from king to attacker
+//               // include the pinned piece's square in the mask
+//               Bitboard line = bit(friendly_sq); // start a bitboard with just pinned piece's square for now
 
-              //start at square next to king in the direction of the pin we're currently looking at
-              int curr_r = king_rank + dr[dir]; 
-              int curr_f = king_file + df[dir];
+//               //start at square next to king in the direction of the pin we're currently looking at
+//               int curr_r = king_rank + dr[dir]; 
+//               int curr_f = king_file + df[dir];
 
-              // go along the direction until off the board
-              while (curr_r >= 0 && curr_r < 8 && curr_f >= 0 && curr_f < 8) {
+//               // go along the direction until off the board
+//               while (curr_r >= 0 && curr_r < 8 && curr_f >= 0 && curr_f < 8) {
                 
-                // for each square along the line, add it to the mask
-                int curr_sq = sq(curr_f, curr_r);
-                line |= bit(curr_sq); 
+//                 // for each square along the line, add it to the mask
+//                 int curr_sq = sq(curr_f, curr_r);
+//                 line |= bit(curr_sq); 
 
-                if (curr_sq == s) {
-                  break; // stop when you reach teh enemy slider's square
-                } 
+//                 if (curr_sq == s) {
+//                   break; // stop when you reach teh enemy slider's square
+//                 } 
 
-                //move to the next square in same direction
-                curr_r += dr[dir];
-                curr_f += df[dir];
-              }
+//                 //move to the next square in same direction
+//                 curr_r += dr[dir];
+//                 curr_f += df[dir];
+//               }
 
-              //store the mask for the pinned piece
-              out_masks[friendly_sq] = line;
-            }
-            break;
-          }
-        } else {
-          break;
-        }
-      }
+//               //store the mask for the pinned piece
+//               out_masks[friendly_sq] = line;
+//             }
+//             break;
+//           }
+//         } else {
+//           break;
+//         }
+//       }
 
-      r += dr[dir];
-      f += df[dir];
-    }
-  }
-}
+//       r += dr[dir];
+//       f += df[dir];
+//     }
+//   }
+// }
 
-// checks if the current player is in check
-bool Board::in_check() const {
-  int king_square = find_king(team_white);
-  if (king_square == -1) {
-    return false;
-  }
+// // checks if the current player is in check
+// bool Board::in_check() const {
+//   int king_square = find_king(team_white);
+//   if (king_square == -1) {
+//     return false;
+//   }
 
-  return is_square_attacked(king_square, !team_white); // check if king is attacked by opposing team
-}
+//   return is_square_attacked(king_square, !team_white); // check if king is attacked by opposing team
+// }
 
 // Generate all pseudo-legal moves (no legality check - may leave king in check)
 std::vector<Move> Board::generate_pseudo_legal_moves() const {
