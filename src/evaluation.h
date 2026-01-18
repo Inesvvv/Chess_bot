@@ -295,7 +295,7 @@ namespace Evaluation {
     // Additional situational penalties (smaller, stackable)
     const int CORNER_TRAP_PENALTY = -25;        //Extra penalty for corner traps
     const int EDGE_TRAP_PENALTY = -12;          //Extra penalty for edge pieces with low mobility
-    const int BLOCKED_BY_OWN_PENALTY = -10;     //Blocked by own pawns
+    const int BLOCKED_BY_OWN_PENALTY = -8;     //Blocked by own pawns
 
     //tapred score
     struct TaperedScore {

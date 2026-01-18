@@ -510,7 +510,7 @@ int evaluate_trapped_pieces(Bitboards::Bitboard white_knights,
             
             // Bad bishop: blocked by own pawns on same color squares
             Bitboards::Bitboard diagonal_attacks = Magic::get_bishop_attacks(sq, occupied);
-            if (popcount(diagonal_attacks & friendly_pawns) >= 4) {
+            if (popcount(diagonal_attacks & friendly_pawns) >= 3) {
                 side_penalty += BAD_BISHOP_PENALTY;
             }
         }
