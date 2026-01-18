@@ -4,7 +4,6 @@
 // Created: 2025-11-28
 
 #include "bitboards.h"
-#include "board.h"
 
 namespace Bitboards
 {
@@ -32,13 +31,10 @@ namespace Bitboards
 
     // --------------- Masks ----------------
     std::array<Bitboard, 8> file_mask;
-    std::array<Bitboard, 8> rank_mask;
     std::array<Bitboard, 64> knight_attacks;
     std::array<Bitboard, 64> king_attacks;
     std::array<Bitboard, 64> pawn_attacks_white;
     std::array<Bitboard, 64> pawn_attacks_black;
-    std::array<std::array<Bitboard, 64>, 64> pawn_ep_attacks_white;
-    std::array<std::array<Bitboard, 64>, 64> pawn_ep_attacks_black;
     std::array<Bitboard, 64> passed_pawn_white;
     std::array<Bitboard, 64> passed_pawn_black;
     std::array<Bitboard, 64> isolated_pawn_mask;
@@ -69,20 +65,17 @@ namespace Bitboards
         empty = ~occupied;
     }
 
-    // --------------- Initialize file/rank masks ----------------
+    // --------------- Initialize file masks ----------------
     void init_masks()
     {
         for (int f = 0; f < 8; ++f)
         {
             Bitboard file = 0ULL;
-            Bitboard rank = 0ULL;
             for (int r = 0; r < 8; ++r)
             {
                 file |= bit(sq(f, r));
-                rank |= bit(sq(0, r) + f); // rank1 + file offset
             }
             file_mask[f] = file;
-            rank_mask[f] = rank; // will fix in practice
         }
     }
 
@@ -145,33 +138,6 @@ namespace Bitboards
                 attacks |= bit(sq(f + 1, r - 1));
             pawn_attacks_black[sq_index] = attacks;
 
-            // ======= EN PASSANT Attack Tables ===========
-            // En passant only happens when opposite team pawn pushes twice and our pawn moves diagonaly to the position behind it and can thus capture the opposing pawn
-            for (int ep = 0; ep < 64; ep++)
-            {
-                pawn_ep_attacks_white[sq_index][ep] = 0ULL;
-                pawn_ep_attacks_black[sq_index][ep] = 0ULL;
-
-                int ep_r = ep / 8;
-                int ep_f = ep % 8;
-                // == WHITE ===
-                if (ep_r == 5 && r == 4)
-                {
-                    if (ep_f == f - 1)
-                        pawn_ep_attacks_white[sq_index][ep] = bit(ep);
-                    if (ep_f == f + 1)
-                        pawn_ep_attacks_white[sq_index][ep] = bit(ep);
-                }
-
-                // ==== BLACK ====
-                if (ep_r == 2 && r == 3)
-                {
-                    if (ep_f == f - 1)
-                        pawn_ep_attacks_black[sq_index][ep] = bit(ep);
-                    if (ep_f == f + 1)
-                        pawn_ep_attacks_black[sq_index][ep] = bit(ep);
-                }
-            }
             // ==== PASSED MASK (not using it for move generation but evaluation later because a passed pawn is very powerful) ===
             // ======= WHITE PASSED MASK =====
             Bitboard white_mask = 0ULL;

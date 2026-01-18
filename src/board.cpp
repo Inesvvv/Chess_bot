@@ -558,16 +558,25 @@ std::vector<Move> Board::generate_pseudo_legal_moves() const {
       }
     }
 
-    // En passant capture - simplified, legality checked later
+    // En passant capture - check if pawn can capture en passant
     if (ep_square != -1) {
-      Bitboard ep_attack;
+      int from_rank = from / 8;
+      int from_file = from % 8;
+      int ep_rank = ep_square / 8;
+      int ep_file = ep_square % 8;
+      
+      bool can_ep = false;
       if (team_white) {
-        ep_attack = pawn_ep_attacks_white[from][ep_square];
+        // White: pawn must be on rank 4, ep_square on rank 5, adjacent files
+        can_ep = (from_rank == 4 && ep_rank == 5 && 
+                  (ep_file == from_file - 1 || ep_file == from_file + 1));
       } else {
-        ep_attack = pawn_ep_attacks_black[from][ep_square];
+        // Black: pawn must be on rank 3, ep_square on rank 2, adjacent files
+        can_ep = (from_rank == 3 && ep_rank == 2 && 
+                  (ep_file == from_file - 1 || ep_file == from_file + 1));
       }
-
-      if (ep_attack) {
+      
+      if (can_ep) {
         // allow en-passant as a pseudo-legal move; exact legality (discovered
         // checks) will be filtered by generate_legal_moves
         moves.push_back(Move(from, ep_square, EN_PASSANT));
