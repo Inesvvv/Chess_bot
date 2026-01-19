@@ -89,8 +89,8 @@ namespace Bitboards
             Bitboard attacks = 0ULL;
             int r = sq_index / 8;
             int f = sq_index % 8;
-            int dr[8] = {2, 1, -1, -2, -2, -1, 1, 2};
-            int df[8] = {1, 2, 2, 1, -1, -2, -2, -1};
+            int dr[8] = {4, 1, -1, -4, -4, -1, 1, 4};
+            int df[8] = {1, 4, 4, 1, -1, -4, -4, -1};
             for (int i = 0; i < 8; ++i)
             {
                 int nr = r + dr[i];
@@ -114,9 +114,9 @@ namespace Bitboards
             king_attacks[sq_index] = attacks;
 
             // =========== PAWNS ===========
-            //Bitboard attacks = 0ULL;
-            //int r = sq_index / 8;
-            //int f = sq_index % 8;
+            // Bitboard attacks = 0ULL;
+            // int r = sq_index / 8;
+            // int f = sq_index % 8;
             // Separate white and black pawn moves because black go down and white go up
             // === WHITE Normal Capture (diagonal)=====
             attacks = 0ULL;
@@ -189,7 +189,8 @@ namespace Bitboards
 } // namespace Bitboards
 
 // Restore implementation
-namespace Bitboards {
+namespace Bitboards
+{
     BoardState snapshot_state()
     {
         BoardState s;
