@@ -364,15 +364,15 @@ int Board::count_checkers(bool white_to_move) const {
 //   }
 // }
 
-// // checks if the current player is in check
-// bool Board::in_check() const {
-//   int king_square = find_king(team_white);
-//   if (king_square == -1) {
-//     return false;
-//   }
+// checks if the current player is in check
+bool Board::in_check() const {
+  int king_square = find_king(team_white);
+  if (king_square == -1) {
+    return false;
+  }
 
-//   return is_square_attacked(king_square, !team_white); // check if king is attacked by opposing team
-// }
+  return is_square_attacked(king_square, !team_white); // check if king is attacked by opposing team
+}
 
 // Generate all pseudo-legal moves (no legality check - may leave king in check)
 std::vector<Move> Board::generate_pseudo_legal_moves() const {
