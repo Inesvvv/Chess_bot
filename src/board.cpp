@@ -679,23 +679,10 @@ std::vector<Move> Board::generate_pseudo_legal_moves() const
     while (temp_attacks)
     {
       int to = pop_lsb(temp_attacks);
-      int from_rank = from / 8;
-      int to_rank = to / 8;
-      if (team_white && to_rank >= from_rank)
-      {
-        if (enemy_pieces & bit(to))
-          moves.push_back(Move(from, to, CAPTURE));
-        else
-          moves.push_back({from, to});
-      }
-
-      if (!team_white && to_rank <= from_rank)
-      {
-        if (enemy_pieces & bit(to))
-          moves.push_back(Move(from, to, CAPTURE));
-        else
-          moves.push_back({from, to});
-      }
+      if (enemy_pieces & bit(to))
+        moves.push_back(Move(from, to, CAPTURE));
+      else
+        moves.push_back({from, to});
     }
   }
 

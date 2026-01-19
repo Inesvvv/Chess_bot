@@ -89,8 +89,8 @@ namespace Bitboards
             Bitboard attacks = 0ULL;
             int r = sq_index / 8;
             int f = sq_index % 8;
-            int dr[8] = {4, 1, -1, -4, -4, -1, 1, 4};
-            int df[8] = {1, 4, 4, 1, -1, -4, -4, -1};
+            int dr[8] = {2, 1, -1, -2, -2, -1, 1, 2};
+            int df[8] = {1, 2, 2, 1, -1, -2, -2, -1};
             for (int i = 0; i < 8; ++i)
             {
                 int nr = r + dr[i];
