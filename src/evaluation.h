@@ -275,29 +275,29 @@ namespace Evaluation {
 
     //penalties for trapped pieces (3 levels of restriction of moves) look at values again might be a bit to harsh
     //knights 
-    const int TRAPPED_KNIGHT_SEVERE = -75;      
-    const int TRAPPED_KNIGHT_MODERATE = -35;   
-    const int TRAPPED_KNIGHT_LIGHT = -15;       
+    const int TRAPPED_KNIGHT_SEVERE = -45;      
+    const int TRAPPED_KNIGHT_MODERATE = -26;   
+    const int TRAPPED_KNIGHT_LIGHT = -12;       
     
     //bishops 
-    const int TRAPPED_BISHOP_SEVERE = -75;     
-    const int TRAPPED_BISHOP_MODERATE = -35;    
-    const int TRAPPED_BISHOP_LIGHT = -12;       
+    const int TRAPPED_BISHOP_SEVERE = -45;     
+    const int TRAPPED_BISHOP_MODERATE = -26;    
+    const int TRAPPED_BISHOP_LIGHT = -10;       
 
     //rooks 
-    const int TRAPPED_ROOK_SEVERE = -100;      
-    const int TRAPPED_ROOK_MODERATE = -50;      
-    const int TRAPPED_ROOK_LIGHT = -20;        
+    const int TRAPPED_ROOK_SEVERE = -65;      
+    const int TRAPPED_ROOK_MODERATE = -32;      
+    const int TRAPPED_ROOK_LIGHT = -11;        
     
     //queens 
-    const int TRAPPED_QUEEN_SEVERE = -120;      
-    const int TRAPPED_QUEEN_MODERATE = -70;     
-    const int TRAPPED_QUEEN_LIGHT = -25;       
+    const int TRAPPED_QUEEN_SEVERE = -85;      
+    const int TRAPPED_QUEEN_MODERATE = -40;     
+    const int TRAPPED_QUEEN_LIGHT = -15;       
     
     // Additional situational penalties (smaller, stackable)
-    const int CORNER_TRAP_PENALTY = -17;        //Extra penalty for corner traps
-    const int EDGE_TRAP_PENALTY = -10;          //Extra penalty for edge pieces with low mobility
-    const int BLOCKED_BY_OWN_PENALTY = -8;     //Blocked by own pawns
+    const int CORNER_TRAP_PENALTY = -15;        //Extra penalty for corner traps
+    const int EDGE_TRAP_PENALTY = -8;          //Extra penalty for edge pieces with low mobility
+    const int BLOCKED_BY_OWN_PENALTY = -6;     //Blocked by own pawns
 
     //tapred score
     struct TaperedScore {
