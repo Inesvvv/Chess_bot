@@ -9,6 +9,12 @@
 
 namespace Evaluation {
 
+//define a new (old) helper copied from board.cpp (but it is a member function of board) to penalize pinned pieces
+static inline int find_king_square(Bitboards::Bitboard king_bb) {
+    if (king_bb == 0ULL) return -1;
+    return __builtin_ctzll(king_bb);
+}
+
 //calculate phase (for now endgame/midgame) for tappered eval
 // ==================== PHASE CALCULATION ====================
 int calculate_phase(Bitboards::Bitboard white_knights,
@@ -983,6 +989,96 @@ int evaluate_backward_pawns(Bitboards::Bitboard white_pawns,
     return score;
 }
 
+// pinned pieces evaluation
+// copied most things from board/bitboard that were member functions for those objects
+int evaluate_pins() {
+    using namespace Bitboards;
+
+    auto compute_pinned_side = [&](bool for_white) -> Bitboards::Bitboard {
+        Bitboards::Bitboard pinned = 0ULL;
+
+        int king_square = find_king_square(for_white ? white_kings : black_kings);
+        if (king_square < 0) {
+            return pinned;
+        }
+
+        int king_rank = king_square / 8;
+        int king_file = king_square % 8;
+
+        // 8 directions from king: N, S, E, W, NE, NW, SE, SW
+        const int dr[8] = {1, -1, 0, 0, 1, 1, -1, -1};
+        const int df[8] = {0, 0, 1, -1, 1, -1, 1, -1};
+
+        for (int dir = 0; dir < 8; ++dir) {
+            int r = king_rank + dr[dir];
+            int f = king_file + df[dir];
+            bool found_friendly = false;
+            int friendly_sq = -1;
+
+            while (r >= 0 && r < 8 && f >= 0 && f < 8) {
+                int s = sq(f, r);
+                Bitboards::Bitboard sbit = bit(s);
+
+                if (occupied & sbit) {
+                    bool is_friendly = for_white ? (all_white & sbit) : (all_black & sbit);
+                    bool is_enemy = for_white ? (all_black & sbit) : (all_white & sbit);
+
+                    if (is_friendly) {
+                        if (!found_friendly) {
+                            found_friendly = true;
+                            friendly_sq = s;
+                        } else {
+                            break;
+                        }
+                    } else if (is_enemy) {
+                        if (!found_friendly) {
+                            break;
+                        } else {
+                            bool is_diag = (dir >= 4);
+                            Bitboards::Bitboard enemy_rooks   = for_white ? black_rooks   : white_rooks;
+                            Bitboards::Bitboard enemy_bishops = for_white ? black_bishops : white_bishops;
+                            Bitboards::Bitboard enemy_queens  = for_white ? black_queens  : white_queens;
+
+                            bool slider = false;
+                            if (is_diag) {
+                                if ((enemy_bishops & sbit) || (enemy_queens & sbit))
+                                    slider = true;
+                            } else {
+                                if ((enemy_rooks & sbit) || (enemy_queens & sbit))
+                                    slider = true;
+                            }
+
+                            if (slider) {
+                                pinned |= bit(friendly_sq);
+                            }
+                            break;
+                        }
+                    } else {
+                        break;
+                    }
+                }
+
+                r += dr[dir];
+                f += df[dir];
+            }
+        }
+
+        return pinned;
+    };
+
+    Bitboards::Bitboard white_pinned = compute_pinned_side(true);
+    Bitboards::Bitboard black_pinned = compute_pinned_side(false);
+
+    int white_pinned_count = popcount(white_pinned);
+    int black_pinned_count = popcount(black_pinned);
+
+    int score = 0;
+    score -= PINNED_PIECE_PENALTY * white_pinned_count;
+    score += PINNED_PIECE_PENALTY * black_pinned_count;
+
+    return score;
+}
+
 
 //same functions as above but now implemented with the tapered logic
 
@@ -1242,7 +1338,10 @@ int evaluate_tapered(Bitboards::Bitboard white_pawns,
     // 12. Backward pawns
     score += evaluate_backward_pawns(white_pawns, black_pawns);
     
-    // 13. Tempo bonus
+    // 13. Pinned pieces
+    score += evaluate_pins();
+    
+    // 14. Tempo bonus
     if (white_to_move) {
         score += 10;
     } else {
@@ -1340,7 +1439,10 @@ int evaluate(Bitboards::Bitboard white_pawns,
     // 12. Backward pawns
     score += evaluate_backward_pawns(white_pawns, black_pawns);
 
-    // 13. Tempo bonus
+    // 13. Pinned pieces
+    score += evaluate_pins();
+
+    // 14. Tempo bonus
     if (white_to_move) {
         score += 10;
     } else {

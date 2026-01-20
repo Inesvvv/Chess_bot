@@ -269,6 +269,7 @@ namespace Evaluation {
     const int CENTER_CONTROL_BONUS = 15; //center is advantage
     const int EXTENDED_CENTER_BONUS = 5;
     const int SPACE_BONUS_PER_SQUARE = 2; 
+    const int PINNED_PIECE_PENALTY = 8;  // small penalty for pinned pieces
     //maybe add penalty for hanging pieces + lower some bonus/malus might have to much impact
     
 
@@ -294,8 +295,8 @@ namespace Evaluation {
     const int TRAPPED_QUEEN_LIGHT = -25;       
     
     // Additional situational penalties (smaller, stackable)
-    const int CORNER_TRAP_PENALTY = -25;        //Extra penalty for corner traps
-    const int EDGE_TRAP_PENALTY = -12;          //Extra penalty for edge pieces with low mobility
+    const int CORNER_TRAP_PENALTY = -17;        //Extra penalty for corner traps
+    const int EDGE_TRAP_PENALTY = -10;          //Extra penalty for edge pieces with low mobility
     const int BLOCKED_BY_OWN_PENALTY = -8;     //Blocked by own pawns
 
     //tapred score
@@ -528,6 +529,9 @@ namespace Evaluation {
     TaperedScore evaluate_pawn_structure_tapered(Bitboards::Bitboard white_pawns,
                                                  Bitboards::Bitboard black_pawns,
                                                  Bitboards::Bitboard occupied);
+
+    // pinned pieces evaluation (returns score from White's perspective)
+    int evaluate_pins();
 
 } // namespace Evaluation
 
