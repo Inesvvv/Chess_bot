@@ -259,18 +259,28 @@ namespace Evaluation {
     const int KING_OPEN_FILE_PENALTY = 6;    // additional penalty if fully open
     const int KING_ZONE_ATTACK_PENALTY = 10; // per enemy attack in king zone
     const int KING_SAFETY_ENDGAME_SCALE = 60; // percent of king safety kept in endgame
-    const int ROOK_ON_SEVENTH_BONUS = 25; //active rook - might be to much with pst table
+    const int ROOK_ON_SEVENTH_BONUS = 18; //active rook - might be to much with pst table
     const int CONNECTED_ROOKS_BONUS = 27; //rooks connected 
     const int KNIGHT_OUTPOST_BONUS = 12; //knight defended by own pawn not aatacked by enemy pawn + enemy ranks
     const int KNIGHT_OUTPOST_STRONG_BONUS = 25;
     const int BAD_BISHOP_PENALTY = -25; //bishop blocked by pieces
     const int BACKWARD_PAWN_PENALTY = -12; //pawn cant push safely + isolated
     const int PAWN_CHAIN_BONUS = 8; //connected pawns
-    const int CENTER_CONTROL_BONUS = 15; //center is advantage
-    const int EXTENDED_CENTER_BONUS = 5;
+    const int CENTER_CONTROL_BONUS = 12; //center is advantage
+    const int EXTENDED_CENTER_BONUS = 3;
     const int SPACE_BONUS_PER_SQUARE = 2; 
     const int PINNED_PIECE_PENALTY = 8;  // small penalty for pinned pieces
-    //maybe add penalty for hanging pieces + lower some bonus/malus might have to much impact
+    
+    // piece safety (hanging pieces): enemy attacks piece square and it's not defended
+    const int HANGING_PAWN_PENALTY = 8;
+    const int HANGING_MINOR_PENALTY = 22;  // knights/bishops
+    const int HANGING_ROOK_PENALTY = 32;
+    const int HANGING_QUEEN_PENALTY = 56;
+
+    // passed pawn refinements
+    const int PASSED_PAWN_BLOCKED_SCALE_PERCENT = 55; // if square ahead occupied
+    const int PASSED_PAWN_SUPPORTED_BONUS = 12;       // defended by pawn
+    const int ROOK_BEHIND_PASSER_BONUS = 18;          // rook behind own passed pawn (or behind enemy to stop it)
     
 
     //penalties for trapped pieces (3 levels of restriction of moves) look at values again might be a bit to harsh
@@ -478,6 +488,8 @@ namespace Evaluation {
     int evaluate_backward_pawns(Bitboards::Bitboard white_pawns,
                            Bitboards::Bitboard black_pawns);
 
+    int evaluate_piece_safety(Bitboards::Bitboard occupied);
+
     int evaluate_tapered(Bitboards::Bitboard white_pawns,
                      Bitboards::Bitboard white_knights,
                      Bitboards::Bitboard white_bishops,
@@ -530,7 +542,7 @@ namespace Evaluation {
                                                  Bitboards::Bitboard black_pawns,
                                                  Bitboards::Bitboard occupied);
 
-    // pinned pieces evaluation (returns score from White's perspective)
+    // pinned pieces evaluation
     int evaluate_pins();
 
 } // namespace Evaluation

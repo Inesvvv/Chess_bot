@@ -15,6 +15,62 @@ static inline int find_king_square(Bitboards::Bitboard king_bb) {
     return __builtin_ctzll(king_bb);
 }
 
+// Compute all attacked squares for a side (pseudo-attacks, not considering pins).
+static Bitboards::Bitboard compute_attacks(bool for_white, Bitboards::Bitboard occ) {
+    using namespace Bitboards;
+    Bitboard attacks = 0ULL;
+
+    Bitboard pawns   = for_white ? white_pawns   : black_pawns;
+    Bitboard knights = for_white ? white_knights : black_knights;
+    Bitboard bishops = for_white ? white_bishops : black_bishops;
+    Bitboard rooks   = for_white ? white_rooks   : black_rooks;
+    Bitboard queens  = for_white ? white_queens  : black_queens;
+    Bitboard kings   = for_white ? white_kings   : black_kings;
+
+    auto pop_lsb_local = [](Bitboard &bb) -> int {
+        int sq = __builtin_ctzll(bb);
+        bb &= (bb - 1);
+        return sq;
+    };
+
+    Bitboard t = pawns;
+    while (t) {
+        int sq = pop_lsb_local(t);
+        attacks |= for_white ? pawn_attacks_white[sq] : pawn_attacks_black[sq];
+    }
+
+    t = knights;
+    while (t) {
+        int sq = pop_lsb_local(t);
+        attacks |= knight_attacks[sq];
+    }
+
+    t = bishops;
+    while (t) {
+        int sq = pop_lsb_local(t);
+        attacks |= Magic::get_bishop_attacks(sq, occ);
+    }
+
+    t = rooks;
+    while (t) {
+        int sq = pop_lsb_local(t);
+        attacks |= Magic::get_rook_attacks(sq, occ);
+    }
+
+    t = queens;
+    while (t) {
+        int sq = pop_lsb_local(t);
+        attacks |= Magic::get_queen_attacks(sq, occ);
+    }
+
+    if (kings) {
+        int sq = __builtin_ctzll(kings);
+        attacks |= king_attacks[sq];
+    }
+
+    return attacks;
+}
+
 //calculate phase (for now endgame/midgame) for tappered eval
 // ==================== PHASE CALCULATION ====================
 int calculate_phase(Bitboards::Bitboard white_knights,
@@ -137,9 +193,31 @@ int evaluate_pawn_structure(Bitboards::Bitboard white_pawns, Bitboards::Bitboard
         int file = sq % 8;
         int rank = sq / 8;
         
-        // Passed pawn check
+        // Passed pawn check (+ refinements)
         if ((Bitboards::passed_pawn_white[sq] & black_pawns) == 0) {
-            score += PASSED_PAWN_BONUS[rank];
+            int bonus = PASSED_PAWN_BONUS[rank];
+            // blocked passed pawn: scale down bonus
+            if (rank < 7) {
+                int forward_sq = sq + 8;
+                if (occupied & Bitboards::bit(forward_sq)) {
+                    bonus = bonus * PASSED_PAWN_BLOCKED_SCALE_PERCENT / 100;
+                }
+            }
+            // supported by pawn
+            if (Bitboards::pawn_attacks_black[sq] & white_pawns) {
+                bonus += PASSED_PAWN_SUPPORTED_BONUS;
+            }
+            // rook behind passer
+            if (Bitboards::file_mask[file] & Bitboards::white_rooks) {
+                Bitboards::Bitboard rooks_on_file = Bitboards::white_rooks & Bitboards::file_mask[file];
+                // any rook strictly behind pawn (lower rank)
+                Bitboards::Bitboard behind_mask = 0ULL;
+                for (int r = 0; r < rank; ++r) behind_mask |= Bitboards::bit(Bitboards::sq(file, r));
+                if (rooks_on_file & behind_mask) {
+                    bonus += ROOK_BEHIND_PASSER_BONUS;
+                }
+            }
+            score += bonus;
         }
         
         // Isolated pawn check
@@ -165,9 +243,30 @@ int evaluate_pawn_structure(Bitboards::Bitboard white_pawns, Bitboards::Bitboard
         int file = sq % 8;
         int rank = sq / 8;
         
-        // Passed pawn check
+        // Passed pawn check (+ refinements)
         if ((Bitboards::passed_pawn_black[sq] & white_pawns) == 0) {
-            score -= PASSED_PAWN_BONUS[7 - rank];  // Flip rank for black
+            int bonus = PASSED_PAWN_BONUS[7 - rank];  // Flip rank for black
+            // blocked passed pawn: scale down bonus
+            if (rank > 0) {
+                int forward_sq = sq - 8;
+                if (occupied & Bitboards::bit(forward_sq)) {
+                    bonus = bonus * PASSED_PAWN_BLOCKED_SCALE_PERCENT / 100;
+                }
+            }
+            // supported by pawn
+            if (Bitboards::pawn_attacks_white[sq] & black_pawns) {
+                bonus += PASSED_PAWN_SUPPORTED_BONUS;
+            }
+            // rook behind passer (from black perspective: higher rank)
+            if (Bitboards::file_mask[file] & Bitboards::black_rooks) {
+                Bitboards::Bitboard rooks_on_file = Bitboards::black_rooks & Bitboards::file_mask[file];
+                Bitboards::Bitboard behind_mask = 0ULL;
+                for (int r = 7; r > rank; --r) behind_mask |= Bitboards::bit(Bitboards::sq(file, r));
+                if (rooks_on_file & behind_mask) {
+                    bonus += ROOK_BEHIND_PASSER_BONUS;
+                }
+            }
+            score -= bonus;
         }
         
         // Isolated pawn check
@@ -441,11 +540,17 @@ int evaluate_trapped_pieces(Bitboards::Bitboard white_knights,
                             Bitboards::Bitboard occupied)
 {
     int score = 0;
+
+    // precompute attack maps to gate harsh penalties behind actual danger
+    Bitboards::Bitboard white_attacks = compute_attacks(true, occupied);
+    Bitboards::Bitboard black_attacks = compute_attacks(false, occupied);
     
     auto evaluate_side = [&](Bitboards::Bitboard knights, Bitboards::Bitboard bishops,
                             Bitboards::Bitboard rooks, Bitboards::Bitboard queens,
                             Bitboards::Bitboard friendly, Bitboards::Bitboard enemy,
                             Bitboards::Bitboard friendly_pawns,
+                            Bitboards::Bitboard friendly_attacks,
+                            Bitboards::Bitboard enemy_attacks,
                             int multiplier) -> int {
         int side_penalty = 0;
         
@@ -458,18 +563,23 @@ int evaluate_trapped_pieces(Bitboards::Bitboard white_knights,
             
             int mobility = count_piece_mobility(sq, friendly, enemy, occupied,
                                                true, false, false, false);
+            bool attacked = (enemy_attacks & Bitboards::bit(sq)) != 0;
+            bool defended = (friendly_attacks & Bitboards::bit(sq)) != 0;
             
             // Apply penalties based on mobility thresholds
             if (mobility <= 1) {
-                // Completely trapped (0-1 moves)
-                side_penalty += TRAPPED_KNIGHT_SEVERE;
+                // Completely trapped (0-1 moves) - only harsh if under pressure
+                if (attacked && !defended) side_penalty += TRAPPED_KNIGHT_SEVERE;
+                else if (attacked) side_penalty += TRAPPED_KNIGHT_MODERATE;
+                else side_penalty += TRAPPED_KNIGHT_LIGHT;
                 if (is_corner(sq)) {
                     side_penalty += CORNER_TRAP_PENALTY;
                 }
             }
             else if (mobility <= 3) {
                 // Very limited (2-3 moves)
-                side_penalty += TRAPPED_KNIGHT_MODERATE;
+                if (attacked && !defended) side_penalty += TRAPPED_KNIGHT_MODERATE;
+                else side_penalty += TRAPPED_KNIGHT_LIGHT;
                 if (is_edge(sq)) {
                     side_penalty += EDGE_TRAP_PENALTY;
                 }
@@ -496,17 +606,22 @@ int evaluate_trapped_pieces(Bitboards::Bitboard white_knights,
             
             int mobility = count_piece_mobility(sq, friendly, enemy, occupied,
                                                false, true, false, false);
+            bool attacked = (enemy_attacks & Bitboards::bit(sq)) != 0;
+            bool defended = (friendly_attacks & Bitboards::bit(sq)) != 0;
             
             if (mobility <= 2) {
                 // Severely trapped (0-2 moves)
-                side_penalty += TRAPPED_BISHOP_SEVERE;
+                if (attacked && !defended) side_penalty += TRAPPED_BISHOP_SEVERE;
+                else if (attacked) side_penalty += TRAPPED_BISHOP_MODERATE;
+                else side_penalty += TRAPPED_BISHOP_LIGHT;
                 if (is_corner(sq)) {
                     side_penalty += CORNER_TRAP_PENALTY;
                 }
             }
             else if (mobility <= 4) {
                 // Moderately trapped (3-4 moves)
-                side_penalty += TRAPPED_BISHOP_MODERATE;
+                if (attacked && !defended) side_penalty += TRAPPED_BISHOP_MODERATE;
+                else side_penalty += TRAPPED_BISHOP_LIGHT;
             }
             else if (mobility <= 6) {
                 // Slightly limited (5-6 moves)
@@ -530,14 +645,19 @@ int evaluate_trapped_pieces(Bitboards::Bitboard white_knights,
             
             int mobility = count_piece_mobility(sq, friendly, enemy, occupied,
                                                false, false, true, false);
+            bool attacked = (enemy_attacks & Bitboards::bit(sq)) != 0;
+            bool defended = (friendly_attacks & Bitboards::bit(sq)) != 0;
             
             if (mobility <= 3) {
                 // Severely trapped (0-3 moves)
-                side_penalty += TRAPPED_ROOK_SEVERE;
+                if (attacked && !defended) side_penalty += TRAPPED_ROOK_SEVERE;
+                else if (attacked) side_penalty += TRAPPED_ROOK_MODERATE;
+                else side_penalty += TRAPPED_ROOK_LIGHT;
             }
             else if (mobility <= 6) {
                 // Moderately trapped (4-6 moves)
-                side_penalty += TRAPPED_ROOK_MODERATE;
+                if (attacked && !defended) side_penalty += TRAPPED_ROOK_MODERATE;
+                else side_penalty += TRAPPED_ROOK_LIGHT;
             }
             else if (mobility <= 9) {
                 // Slightly limited (7-9 moves)
@@ -562,17 +682,22 @@ int evaluate_trapped_pieces(Bitboards::Bitboard white_knights,
             
             int mobility = count_piece_mobility(sq, friendly, enemy, occupied,
                                                false, false, false, true);
+            bool attacked = (enemy_attacks & Bitboards::bit(sq)) != 0;
+            bool defended = (friendly_attacks & Bitboards::bit(sq)) != 0;
             
             if (mobility <= 4) {
                 // Severely trapped (0-4 moves)
-                side_penalty += TRAPPED_QUEEN_SEVERE;
+                if (attacked && !defended) side_penalty += TRAPPED_QUEEN_SEVERE;
+                else if (attacked) side_penalty += TRAPPED_QUEEN_MODERATE;
+                else side_penalty += TRAPPED_QUEEN_LIGHT;
                 if (is_corner(sq) || is_edge(sq)) {
                     side_penalty += CORNER_TRAP_PENALTY;
                 }
             }
             else if (mobility <= 9) {
                 // Moderately trapped (5-9 moves)
-                side_penalty += TRAPPED_QUEEN_MODERATE;
+                if (attacked && !defended) side_penalty += TRAPPED_QUEEN_MODERATE;
+                else side_penalty += TRAPPED_QUEEN_LIGHT;
             }
             else if (mobility <= 14) {
                 // Slightly limited (10-14 moves)
@@ -586,11 +711,11 @@ int evaluate_trapped_pieces(Bitboards::Bitboard white_knights,
     
     // Evaluate white pieces
     score += evaluate_side(white_knights, white_bishops, white_rooks, white_queens,
-                          all_white, all_black, white_pawns, -1);
+                          all_white, all_black, white_pawns, white_attacks, black_attacks, -1);
     
     // Evaluate black pieces
     score += evaluate_side(black_knights, black_bishops, black_rooks, black_queens,
-                          all_black, all_white, black_pawns, 1);
+                          all_black, all_white, black_pawns, black_attacks, white_attacks, 1);
     
     return score;
 }
@@ -822,13 +947,7 @@ int evaluate_center_control(Bitboards::Bitboard white_pawns,
             score -= CENTER_CONTROL_BONUS;
         }
         
-        // Pieces occupying center also good
-        if (white_pieces & sq_bit) {
-            score += CENTER_CONTROL_BONUS / 2;
-        }
-        if (black_pieces & sq_bit) {
-            score -= CENTER_CONTROL_BONUS / 2;
-        }
+        // Pieces occupying center are already strongly covered by PSTs; avoid double-counting here.
     }
     
     // Extended center: c3-f3, c4-f4, c5-f5, c6-f6 (excluding main center)
@@ -850,12 +969,7 @@ int evaluate_center_control(Bitboards::Bitboard white_pawns,
             score -= EXTENDED_CENTER_BONUS;
         }
         
-        if (white_pieces & sq_bit) {
-            score += EXTENDED_CENTER_BONUS / 2;
-        }
-        if (black_pieces & sq_bit) {
-            score -= EXTENDED_CENTER_BONUS / 2;
-        }
+        // same as above: no extra bonus for piece occupancy
     }
     
     return score;
@@ -986,6 +1100,44 @@ int evaluate_backward_pawns(Bitboards::Bitboard white_pawns,
         }
     }
     
+    return score;
+}
+
+// Piece safety / hanging pieces
+int evaluate_piece_safety(Bitboards::Bitboard occ) {
+    using namespace Bitboards;
+    Bitboard white_attacks = compute_attacks(true, occ);
+    Bitboard black_attacks = compute_attacks(false, occ);
+
+    int score = 0;
+
+    auto add_hanging = [&](bool for_white, Bitboard pieces, int penalty) {
+        Bitboard t = pieces;
+        while (t) {
+            int sq = __builtin_ctzll(t);
+            t &= t - 1;
+            Bitboard sqb = bit(sq);
+            bool attacked = (for_white ? (black_attacks & sqb) : (white_attacks & sqb)) != 0;
+            bool defended = (for_white ? (white_attacks & sqb) : (black_attacks & sqb)) != 0;
+            if (attacked && !defended) {
+                // penalty is bad for the side that has the hanging piece
+                score += for_white ? -penalty : penalty;
+            }
+        }
+    };
+
+    add_hanging(true,  white_pawns,   HANGING_PAWN_PENALTY);
+    add_hanging(true,  white_knights, HANGING_MINOR_PENALTY);
+    add_hanging(true,  white_bishops, HANGING_MINOR_PENALTY);
+    add_hanging(true,  white_rooks,   HANGING_ROOK_PENALTY);
+    add_hanging(true,  white_queens,  HANGING_QUEEN_PENALTY);
+
+    add_hanging(false, black_pawns,   HANGING_PAWN_PENALTY);
+    add_hanging(false, black_knights, HANGING_MINOR_PENALTY);
+    add_hanging(false, black_bishops, HANGING_MINOR_PENALTY);
+    add_hanging(false, black_rooks,   HANGING_ROOK_PENALTY);
+    add_hanging(false, black_queens,  HANGING_QUEEN_PENALTY);
+
     return score;
 }
 
@@ -1197,10 +1349,40 @@ TaperedScore evaluate_pawn_structure_tapered(Bitboards::Bitboard white_pawns,
         int file = sq % 8;
         int rank = sq / 8;
         
-        //passed pawn check - more valuable in endgame
+        //passed pawn check - more valuable in endgame (+ refinements)
         if ((Bitboards::passed_pawn_white[sq] & black_pawns) == 0) {
-            score.mg += PASSED_PAWN_BONUS_MG[rank];
-            score.eg += PASSED_PAWN_BONUS_EG[rank];
+            int mg_bonus = PASSED_PAWN_BONUS_MG[rank];
+            int eg_bonus = PASSED_PAWN_BONUS_EG[rank];
+
+            // blocked passed pawn: scale down
+            if (rank < 7) {
+                int forward_sq = sq + 8;
+                if (Bitboards::occupied & Bitboards::bit(forward_sq)) {
+                    mg_bonus = mg_bonus * PASSED_PAWN_BLOCKED_SCALE_PERCENT / 100;
+                    eg_bonus = eg_bonus * PASSED_PAWN_BLOCKED_SCALE_PERCENT / 100;
+                }
+            }
+
+            // supported by pawn
+            if (Bitboards::pawn_attacks_black[sq] & white_pawns) {
+                mg_bonus += PASSED_PAWN_SUPPORTED_BONUS;
+                eg_bonus += PASSED_PAWN_SUPPORTED_BONUS;
+            }
+
+            // rook behind passer
+            Bitboards::Bitboard file_mask = Bitboards::file_mask[file];
+            Bitboards::Bitboard rooks_on_file = Bitboards::white_rooks & file_mask;
+            if (rooks_on_file) {
+                Bitboards::Bitboard behind_mask = 0ULL;
+                for (int r = 0; r < rank; ++r) behind_mask |= Bitboards::bit(Bitboards::sq(file, r));
+                if (rooks_on_file & behind_mask) {
+                    mg_bonus += ROOK_BEHIND_PASSER_BONUS;
+                    eg_bonus += ROOK_BEHIND_PASSER_BONUS;
+                }
+            }
+
+            score.mg += mg_bonus;
+            score.eg += eg_bonus;
         }
         
         //isolated pawn check
@@ -1226,10 +1408,40 @@ TaperedScore evaluate_pawn_structure_tapered(Bitboards::Bitboard white_pawns,
         int file = sq % 8;
         int rank = sq / 8;
         
-        //passed pawn check
+        //passed pawn check 
         if ((Bitboards::passed_pawn_black[sq] & white_pawns) == 0) {
-            score.mg -= PASSED_PAWN_BONUS_MG[7 - rank];
-            score.eg -= PASSED_PAWN_BONUS_EG[7 - rank];
+            int mg_bonus = PASSED_PAWN_BONUS_MG[7 - rank];
+            int eg_bonus = PASSED_PAWN_BONUS_EG[7 - rank];
+
+            // blocked passed pawn: scale down
+            if (rank > 0) {
+                int forward_sq = sq - 8;
+                if (Bitboards::occupied & Bitboards::bit(forward_sq)) {
+                    mg_bonus = mg_bonus * PASSED_PAWN_BLOCKED_SCALE_PERCENT / 100;
+                    eg_bonus = eg_bonus * PASSED_PAWN_BLOCKED_SCALE_PERCENT / 100;
+                }
+            }
+
+            // supported by pawn
+            if (Bitboards::pawn_attacks_white[sq] & black_pawns) {
+                mg_bonus += PASSED_PAWN_SUPPORTED_BONUS;
+                eg_bonus += PASSED_PAWN_SUPPORTED_BONUS;
+            }
+
+            // rook behind passer 
+            Bitboards::Bitboard file_mask = Bitboards::file_mask[file];
+            Bitboards::Bitboard rooks_on_file = Bitboards::black_rooks & file_mask;
+            if (rooks_on_file) {
+                Bitboards::Bitboard behind_mask = 0ULL;
+                for (int r = 7; r > rank; --r) behind_mask |= Bitboards::bit(Bitboards::sq(file, r));
+                if (rooks_on_file & behind_mask) {
+                    mg_bonus += ROOK_BEHIND_PASSER_BONUS;
+                    eg_bonus += ROOK_BEHIND_PASSER_BONUS;
+                }
+            }
+
+            score.mg -= mg_bonus;
+            score.eg -= eg_bonus;
         }
         
         //isolated pawn check
@@ -1310,6 +1522,9 @@ int evaluate_tapered(Bitboards::Bitboard white_pawns,
                                    white_queens, black_queens,
                                    occupied, endgame);
     
+    // 5b. Piece safety / hanging pieces
+    score += evaluate_piece_safety(occupied);
+
     // 6. Trapped pieces
     Bitboards::Bitboard all_white = white_pawns | white_knights | white_bishops |
                                      white_rooks | white_queens | white_kings;
@@ -1333,10 +1548,16 @@ int evaluate_tapered(Bitboards::Bitboard white_pawns,
     score += evaluate_center_control(white_pawns, black_pawns, all_white, all_black);
     
     // 11. Space advantage
-    score += evaluate_space(white_pawns, black_pawns, all_white, all_black);
+    {
+        int space_score = evaluate_space(white_pawns, black_pawns, all_white, all_black);
+        // Space matters less in endgames; reduce noise
+        if (endgame) space_score = space_score * 50 / 100;
+        score += space_score;
+    }
     
     // 12. Backward pawns
-    score += evaluate_backward_pawns(white_pawns, black_pawns);
+    // Disabled for now: current heuristic is noisy
+    // score += evaluate_backward_pawns(white_pawns, black_pawns);
     
     // 13. Pinned pieces
     score += evaluate_pins();
@@ -1409,6 +1630,9 @@ int evaluate(Bitboards::Bitboard white_pawns,
                                   white_queens, black_queens,
                                   occupied, endgame);
 
+    // 5b. Piece safety / hanging pieces
+    score += evaluate_piece_safety(occupied);
+
     // 6. Trapped pieces evaluation
     Bitboards::Bitboard all_white = white_pawns | white_knights | white_bishops | 
                                      white_rooks | white_queens | white_kings;
@@ -1434,10 +1658,15 @@ int evaluate(Bitboards::Bitboard white_pawns,
     score += evaluate_center_control(white_pawns, black_pawns, all_white, all_black);
 
     // 11. Space advantage
-    score += evaluate_space(white_pawns, black_pawns, all_white, all_black);
+    {
+        int space_score = evaluate_space(white_pawns, black_pawns, all_white, all_black);
+        if (endgame) space_score = space_score * 50 / 100;
+        score += space_score;
+    }
 
     // 12. Backward pawns
-    score += evaluate_backward_pawns(white_pawns, black_pawns);
+    // Disabled for now: current heuristic is noisy and can cause meaningless shuffles.
+    // score += evaluate_backward_pawns
 
     // 13. Pinned pieces
     score += evaluate_pins();
