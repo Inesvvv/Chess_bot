@@ -61,14 +61,15 @@ namespace Evaluation {
         0,   0,   0,   0,   0,   0,   0,   0
     };
 
+    // Slightly softened knight centralization to avoid over-prioritising knight maneuvers
     const int KNIGHT_TABLE[64] = {
         -50, -40, -30, -30, -30, -30, -40, -50,
-        -40, -20,   0,   0,   0,   0, -20, -40,
-        -30,   0,  10,  15,  15,  10,   0, -30,
-        -30,   5,  15,  20,  20,  15,   5, -30,
-        -30,   0,  15,  20,  20,  15,   0, -30,
-        -30,   5,  10,  15,  15,  10,   5, -30,
-        -40, -20,   0,   5,   5,   0, -20, -40,
+        -40, -20,  -2,  -2,  -2,  -2, -20, -40,
+        -30,  -2,   8,  12,  12,   8,  -2, -30,
+        -30,   4,  12,  17,  17,  12,   4, -30,
+        -30,  -2,  12,  17,  17,  12,  -2, -30,
+        -30,   4,   8,  12,  12,   8,   4, -30,
+        -40, -20,  -2,   3,   3,  -2, -20, -40,
         -50, -40, -30, -30, -30, -30, -40, -50
     };
 
@@ -129,26 +130,26 @@ namespace Evaluation {
         0,   0,   0,   0,   0,   0,   0,   0
     };
 
-    const int KNIGHT_TABLE_MG[64] = { //look at this maybe again later we move knight to the center to fast, changed (just by feeling and only a tiny bit) a bit might need more
+    const int KNIGHT_TABLE_MG[64] = { //look at this maybe again later we move knight to the center to faast and just to many knight moves
         -45, -37, -27, -25, -25, -27, -37, -45,
-        -37, -18,   0,   0,   0,   0, -18, -37,
-        -27,   0,  9,  13,  13,  9,   0, -27,
-        -25,   5,  13,  18,  18,  13,   5, -25,
-        -25,   0,  13,  18,  18,  13,   0, -25,
-        -27,   5,  9,  13,  13,  9,   5, -27,
-        -37, -18,   0,   5,   5,   0, -18, -37,
+        -37, -18,  -2,  -2,  -2,  -2, -18, -37,
+        -27,  -2,   7,  11,  11,   7,  -2, -27,
+        -25,   4,  11,  16,  16,  11,   4, -25,
+        -25,  -2,  11,  16,  16,  11,  -2, -25,
+        -27,   4,   7,  11,  11,   7,   4, -27,
+        -37, -18,  -2,   3,   3,  -2, -18, -37,
         -45, -37, -27, -25, -25, -27, -40, -45
     };
 
-    const int KNIGHT_TABLE_EG[64] = {
-        -50, -40, -30, -20, -20, -30, -40, -50,
-        -40, -20, -5,   0,   0, -5, -20, -40,
-        -30, -5,   0,  10,  10,   0, -5, -30,
-        -20,   0,  10,  15,  15,  10,   0, -20,
-        -20,   0,  10,  15,  15,  10,   0, -20,
-        -30, -5,   0,  10,  10,   0, -5, -30,
-        -40, -20, -5,   0,   0, -5, -20, -40,
-        -50, -40, -30, -20, -20, -30, -40, -50
+    const int KNIGHT_TABLE_EG[64] = { 
+        -50, -40, -30, -22, -22, -30, -40, -50,
+        -40, -22,  -6,   0,   0,  -6, -22, -40,
+        -30,  -6,   0,   9,   9,   0,  -6, -30,
+        -22,   0,   9,  14,  14,   9,   0, -22,
+        -22,   0,   9,  14,  14,   9,   0, -22,
+        -30,  -6,   0,   9,   9,   0,  -6, -30,
+        -40, -22,  -6,   0,   0,  -6, -22, -40,
+        -50, -40, -30, -22, -22, -30, -40, -50
     };
 
     const int BISHOP_TABLE_MG[64] = {
@@ -181,7 +182,7 @@ namespace Evaluation {
         -5,   0,   0,   0,   0,   0,   0,  -5,
         -5,   0,   0,   0,   0,   0,   0,  -5,
         -5,   0,   0,   0,   0,   0,   0,  -5,
-        0,   0,   0,   5,   5,   0,   0,   0
+        0,   -2,   0,   5,   5,   0,   -2,   0
     };
 
     const int ROOK_TABLE_EG[64] = {
@@ -243,7 +244,7 @@ namespace Evaluation {
 
     //additional bonus/malus for specific cases 
     const int BISHOP_PAIR_BONUS = 50;  // having both bishops
-    const int ROOK_OPEN_FILE_BONUS = 20;  // rook on open file
+    const int ROOK_OPEN_FILE_BONUS = 22;  // rook on open file
     const int ROOK_SEMI_OPEN_FILE_BONUS = 5; // rook on semi-open file
     const int PASSED_PAWN_BONUS[8] = {0, 10, 20, 40, 60, 100, 150, 0}; //before tapered
     const int PASSED_PAWN_BONUS_MG[8] = {0, 10, 20, 40, 60, 100, 150, 0}; // by rank, MG
@@ -258,44 +259,55 @@ namespace Evaluation {
     const int KING_OPEN_FILE_PENALTY = 6;    // additional penalty if fully open
     const int KING_ZONE_ATTACK_PENALTY = 10; // per enemy attack in king zone
     const int KING_SAFETY_ENDGAME_SCALE = 60; // percent of king safety kept in endgame
-    const int ROOK_ON_SEVENTH_BONUS = 25; //active rook - might be to much with pst table
-    const int CONNECTED_ROOKS_BONUS = 25; //rooks connected 
-    const int KNIGHT_OUTPOST_BONUS = 25; //knight defended by own pawn not aatacked by enemy pawn + enemy ranks
-    const int KNIGHT_OUTPOST_STRONG_BONUS = 40;
+    const int ROOK_ON_SEVENTH_BONUS = 18; //active rook - might be to much with pst table
+    const int CONNECTED_ROOKS_BONUS = 27; //rooks connected 
+    const int KNIGHT_OUTPOST_BONUS = 12; //knight defended by own pawn not aatacked by enemy pawn + enemy ranks
+    const int KNIGHT_OUTPOST_STRONG_BONUS = 25;
     const int BAD_BISHOP_PENALTY = -25; //bishop blocked by pieces
     const int BACKWARD_PAWN_PENALTY = -12; //pawn cant push safely + isolated
     const int PAWN_CHAIN_BONUS = 8; //connected pawns
-    const int CENTER_CONTROL_BONUS = 15; //center is advantage
-    const int EXTENDED_CENTER_BONUS = 5;
+    const int CENTER_CONTROL_BONUS = 12; //center is advantage
+    const int EXTENDED_CENTER_BONUS = 3;
     const int SPACE_BONUS_PER_SQUARE = 2; 
-    //maybe add penalty for hanging pieces + lower some bonus/malus might have to much impact
+    const int PINNED_PIECE_PENALTY = 8;  // small penalty for pinned pieces
+    
+    // piece safety (hanging pieces): enemy attacks piece square and it's not defended
+    const int HANGING_PAWN_PENALTY = 8;
+    const int HANGING_MINOR_PENALTY = 22;  // knights/bishops
+    const int HANGING_ROOK_PENALTY = 32;
+    const int HANGING_QUEEN_PENALTY = 56;
+
+    // passed pawn refinements
+    const int PASSED_PAWN_BLOCKED_SCALE_PERCENT = 55; // if square ahead occupied
+    const int PASSED_PAWN_SUPPORTED_BONUS = 12;       // defended by pawn
+    const int ROOK_BEHIND_PASSER_BONUS = 18;          // rook behind own passed pawn (or behind enemy to stop it)
     
 
     //penalties for trapped pieces (3 levels of restriction of moves) look at values again might be a bit to harsh
     //knights 
-    const int TRAPPED_KNIGHT_SEVERE = -75;      
-    const int TRAPPED_KNIGHT_MODERATE = -35;   
-    const int TRAPPED_KNIGHT_LIGHT = -15;       
+    const int TRAPPED_KNIGHT_SEVERE = -45;      
+    const int TRAPPED_KNIGHT_MODERATE = -26;   
+    const int TRAPPED_KNIGHT_LIGHT = -12;       
     
     //bishops 
-    const int TRAPPED_BISHOP_SEVERE = -75;     
-    const int TRAPPED_BISHOP_MODERATE = -35;    
-    const int TRAPPED_BISHOP_LIGHT = -12;       
+    const int TRAPPED_BISHOP_SEVERE = -45;     
+    const int TRAPPED_BISHOP_MODERATE = -26;    
+    const int TRAPPED_BISHOP_LIGHT = -10;       
 
     //rooks 
-    const int TRAPPED_ROOK_SEVERE = -100;      
-    const int TRAPPED_ROOK_MODERATE = -50;      
-    const int TRAPPED_ROOK_LIGHT = -20;        
+    const int TRAPPED_ROOK_SEVERE = -65;      
+    const int TRAPPED_ROOK_MODERATE = -32;      
+    const int TRAPPED_ROOK_LIGHT = -11;        
     
     //queens 
-    const int TRAPPED_QUEEN_SEVERE = -120;      
-    const int TRAPPED_QUEEN_MODERATE = -70;     
-    const int TRAPPED_QUEEN_LIGHT = -25;       
+    const int TRAPPED_QUEEN_SEVERE = -85;      
+    const int TRAPPED_QUEEN_MODERATE = -40;     
+    const int TRAPPED_QUEEN_LIGHT = -15;       
     
     // Additional situational penalties (smaller, stackable)
-    const int CORNER_TRAP_PENALTY = -25;        //Extra penalty for corner traps
-    const int EDGE_TRAP_PENALTY = -12;          //Extra penalty for edge pieces with low mobility
-    const int BLOCKED_BY_OWN_PENALTY = -8;     //Blocked by own pawns
+    const int CORNER_TRAP_PENALTY = -15;        //Extra penalty for corner traps
+    const int EDGE_TRAP_PENALTY = -8;          //Extra penalty for edge pieces with low mobility
+    const int BLOCKED_BY_OWN_PENALTY = -6;     //Blocked by own pawns
 
     //tapred score
     struct TaperedScore {
@@ -476,6 +488,8 @@ namespace Evaluation {
     int evaluate_backward_pawns(Bitboards::Bitboard white_pawns,
                            Bitboards::Bitboard black_pawns);
 
+    int evaluate_piece_safety(Bitboards::Bitboard occupied);
+
     int evaluate_tapered(Bitboards::Bitboard white_pawns,
                      Bitboards::Bitboard white_knights,
                      Bitboards::Bitboard white_bishops,
@@ -527,6 +541,9 @@ namespace Evaluation {
     TaperedScore evaluate_pawn_structure_tapered(Bitboards::Bitboard white_pawns,
                                                  Bitboards::Bitboard black_pawns,
                                                  Bitboards::Bitboard occupied);
+
+    // pinned pieces evaluation
+    int evaluate_pins();
 
 } // namespace Evaluation
 
