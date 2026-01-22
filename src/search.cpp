@@ -30,8 +30,8 @@ static uint64_t total_nodes_explored = 0;
 // Maximum depth reached during iterative deepening - see if thats 
 static int max_depth_reached = 0;
 
-// uncomment back in if need aspiration windows :
-//static const int ASPIRATION_WINDOW = 50; 
+// Aspiration window implemlented back
+static const int ASPIRATION_WINDOW = 50; 
 
 // ====== KILLER MOVES ========
 // Killer moves are quiet moves that caused a beta cutoff at a given ply.
@@ -620,9 +620,9 @@ SearchResult find_best_move(Board &board, int maxDepth)
     Move bestMove = moves[0];
     int bestScore = -INF;
 
-    // Recomment in if need aspiration windows - testing if performance is actually better without them 
-    //int prevScore = 0; 
-    //bool hasPrevScore = false;
+    // Previous iteration's score for aspiration windows
+    int prevScore = 0;
+    bool hasPrevScore = false;
 
     // ========= ITERATIVE DEEPENING =========
     // Search progressively deeper: depth 1, 2, 3, ... maxDepth
@@ -642,8 +642,7 @@ SearchResult find_best_move(Board &board, int maxDepth)
         // Use best move from previous iteration for ordering
         order_moves(moves, board.team_white, bestMove, 0);
         Move iterationBestMove = moves[0];
-        // Commenting aspiration windows out for now to see if they caused an issue in search and reduced our ranking
-        /*
+
         // ======== ASPIRATION WINDOW LOOP AT ROOT ========
         // First try a narrow window around the previous depth's score.
         // On fail-low or fail-high, re-search once with a full window.
@@ -725,37 +724,6 @@ SearchResult find_best_move(Board &board, int maxDepth)
 
             // Score is within aspiration window: accept it
             break;
-        } */
-        // put normal search window code back in 
-        int alpha = -INF;
-        int beta = INF;
-        
-        iterationBestScore = -INF;
-        completedIteration = true;
-        iterationBestMove = moves[0];
-        
-        for (const Move &move : moves)
-        {
-            board.make_move(move);
-            int score = -negamax(board, currentDepth - 1, -beta, -alpha, 1);
-            board.unmake_move(move);
-
-            if (search_aborted)
-            {
-                completedIteration = false;
-                break;
-            }
-        
-            if (score > iterationBestScore)
-            {
-                iterationBestScore = score;
-                iterationBestMove = move;
-            }
-        
-            if (score > alpha)
-            {
-                alpha = score;
-            }
         }
         // Only update best move if we completed this iteration
         if (completedIteration)
@@ -763,8 +731,8 @@ SearchResult find_best_move(Board &board, int maxDepth)
             bestMove = iterationBestMove;
             bestScore = iterationBestScore;
             max_depth_reached = currentDepth;  // Track the deepest depth so far
-            //prevScore = bestScore; - for aspiration
-            //hasPrevScore = true; - for aspiration 
+            prevScore = bestScore;
+            hasPrevScore = true; 
         }
 
         // Early exit if we found a forced mate
@@ -823,7 +791,12 @@ int negamax(Board &board, int depth, int alpha, int beta, int ply)
     bool in_check = board.in_check();
     if (!in_check && depth >= 3 && ply > 0)
     {
-        // Make a "null move" we just flip the side to move (like we dont play)
+        // Make a "null move": give the opponent the move without changing pieces.
+        //
+        // IMPORTANT: en-passant rights only exist for exactly one ply after a double pawn push.
+        // If we don't clear ep_square here, the null-move subtree can generate illegal EP captures --> causing incorrect cutoffs
+        const int saved_ep = board.ep_square;
+        board.ep_square = -1;
         board.team_white = !board.team_white;
         
         // Search with reduced depth
@@ -834,6 +807,13 @@ int negamax(Board &board, int depth, int alpha, int beta, int ply)
         
         // Unmake null move
         board.team_white = !board.team_white;
+        board.ep_square = saved_ep;
+        
+        // if search  aborted shouldnt use null move result
+        if (search_aborted)
+        {
+            return 0;
+        }
         
         // If even with a free move opponent can't beat beta we prune
         if (null_score >= beta)
