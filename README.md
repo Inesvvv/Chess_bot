@@ -24,7 +24,7 @@ src/
 - Bitboard representation with precomputed attack masks and **magic bitboards** for sliding pieces
 - Full rules: castling, en passant, promotions, pins and check evasion
 - **Perft-verified** legal move generation to depth 7
-- Make/unmake instead of board copies, bulk counting and vector pre-allocation. These optimisations brought perft(5) down from over 10 seconds.
+- Make/unmake instead of board copies, bulk counting and vector pre-allocation. These optimizations brought perft(5) down from over 10 seconds.
 
 ### Search
 - Negamax **alpha-beta** with **iterative deepening** and time management
@@ -35,7 +35,7 @@ src/
 - Draw handling for threefold repetition, the 50-move rule and insufficient material. The engine seeks a draw when losing and avoids one when winning.
 
 ### Evaluation
-Tapered evaluation that interpolates between middlegame and endgame by game phase. Terms include material, piece-square tables, pawn structure (passed, isolated, backward and doubled pawns, pawn chains), king safety, mobility, knight outposts, rooks on open files, connected rooks, centre control, space and trapped pieces.
+Tapered evaluation that interpolates between middlegame and endgame by game phase. Terms include material, piece-square tables, pawn structure (passed, isolated, backward and doubled pawns, pawn chains), king safety, mobility, knight outposts, rooks on open files, connected rooks, center control, space and trapped pieces.
 
 ## Build and run
 
@@ -57,7 +57,7 @@ bash scripts/test_elo.sh 1500 10
 
 | Member | Main contributions |
 |---|---|
-| **Inès Vallot** | Board and move structure; knight, king, pawn and bishop move generation; en passant and pawn masks; perft testing and performance optimisation; transposition table with Zobrist hashing; time control; killer/history move ordering; null-move and delta pruning; aspiration windows |
+| **Inès Vallot** | Board and move structure; knight, king, pawn and bishop move generation; en passant and pawn masks; perft testing and performance optimization; transposition table with Zobrist hashing; time control; killer/history move ordering; null-move and delta pruning; aspiration windows |
 | Apolline Weinstein | File I/O, castling and promotion fixes, LMR and PVS, test positions, debugging |
 | Mathis Vernier | Bitboards, magic bitboards, draw detection, tapered evaluation and evaluation terms |
 | Chloé Deux-Pancera | Build system, attack/check/pin detection, king safety, UCI interface, Stockfish/Lichess testing |
