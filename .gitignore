@@ -6,5 +6,8 @@ Makefile
 *.o
 chesster
 .DS_Store
+.vscode/
+nextmove.txt
+next_move.txt
 perft.cpp
 victory_regression.cpp
